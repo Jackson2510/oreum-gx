@@ -254,6 +254,7 @@
         </div>
         <div style="display:flex; align-items:center; gap:6px;">
           <span style="font-size:12px; font-weight:800;" id="admin-role-badge">👑 대표</span>
+          <button type="button" class="btn-sub btn-sm" onclick="changeAdminPassword()">비밀번호 변경</button>
           <button type="button" class="btn-sub btn-sm" onclick="logout()">로그아웃</button>
         </div>
       </div>
@@ -679,7 +680,7 @@
   }
 
   async function loginAdmin() {
-    const phone=document.getElementById("login-admin-phone").value.replace(/[^0-9]/g,"");
+    const phone=document.getElementById("login-admin-phone").value.trim();
     if(!phone) return alert("전화번호를 입력하세요.");
     const all = await db.collection(COL_ADMINS).get();
     if(all.empty) {
@@ -893,15 +894,37 @@
   }
 
   // ==================== 관리자 기능 ====================
-  async function enterAdminView() {
+ async function enterAdminView() {
     document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
     document.getElementById("view-admin").classList.add("active");
-    document.getElementById("admin-role-badge").innerText = currentUser.role==="master" ? `👑 ${currentUser.name||'대표'}` : `👩‍🏫 ${currentUser.name||'선생님'}`;
+    const isMaster = currentUser.role === "master";
+    document.getElementById("admin-role-badge").innerText = isMaster ? `👑 ${currentUser.name||'대표'}` : `👩‍🏫 ${currentUser.name||'선생님'}`;
+    document.getElementById("atab-staff").style.display = isMaster ? "block" : "none";
+    document.getElementById("atab-audit").style.display = isMaster ? "block" : "none";
     document.getElementById("floating-msg-btn").style.display="flex";
     document.getElementById("floating-msg-label").innerText="회원 쪽지";
     await loadAllMembersCache();
     await loadStaffList();
     switchAdminTab("cal");
+  }
+
+  async function changeAdminPassword() {
+    const newPw = prompt(`현재 로그인 번호: ${currentUser.phone}\n변경할 새 로그인 번호(비밀번호)를 입력하세요:`);
+    if (!newPw) return;
+    const cleanPw = newPw.trim();
+    if (!cleanPw) return alert("변경할 번호를 정확히 입력해주세요.");
+    if (cleanPw === currentUser.phone) return alert("현재 사용 중인 번호와 같습니다.");
+    try {
+      const dup = await db.collection(COL_ADMINS).where("phone", "==", cleanPw).get();
+      if (!dup.empty) return alert("이미 다른 관리자/선생님이 사용 중인 번호입니다.");
+      await db.collection(COL_ADMINS).doc(currentUser.id).update({ phone: cleanPw });
+      currentUser.phone = cleanPw;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ type: "admin", phone: cleanPw }));
+      await addAuditLog("비밀번호 변경", `${currentUser.name} 로그인 번호 변경`);
+      alert(`로그인 번호가 [${cleanPw}](으)로 변경되었습니다!\n다음 로그인부터 새 번호를 사용해주세요.`);
+    } catch (e) {
+      alert("변경 중 오류: " + e.message);
+    }
   }
 
   async function loadAllMembersCache() {
@@ -959,12 +982,15 @@
           <strong style="font-size:13px;">${s.role === 'master' ? '👑' : '👩‍🏫'} ${s.name}</strong>
           <span style="font-size:11px; color:#64748b; margin-left:6px;">${s.phone}</span>
         </div>
-        <button type="button" class="btn-danger btn-sm" onclick="deleteStaff('${s.id}', '${s.name}')">삭제</button>
+        ${s.role === 'master'
+          ? `<span style="font-size:11px; font-weight:800; color:#64748b; padding:4px 8px;">대표 보호됨</span>`
+          : `<button type="button" class="btn-danger btn-sm" onclick="deleteStaff('${s.id}', '${s.name}', '${s.role}')">삭제</button>`}
       </div>
     `).join("");
   }
 
-  async function deleteStaff(id, name) {
+  async function deleteStaff(id, name, role) {
+    if (currentUser.role !== 'master' || role === 'master') return alert("대표관리자는 삭제할 수 없습니다.");
     if (!confirm(`${name} 선생님을 목록에서 삭제하시겠습니까?`)) return;
     await db.collection(COL_ADMINS).doc(id).delete();
     await addAuditLog("선생님 삭제", `${name} 삭제됨`);
