@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>오름 (OREUM GX) - 필라테스 & 하이록스</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      /* 눈이 편안한 소프트 세이지 그린 & 웜 슬레이트 테마 */
+      --grad-main: linear-gradient(135deg, #52796f 0%, #354f52 100%);
+      --grad-pilates: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+      --grad-hyrox: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      --grad-both: linear-gradient(135deg, #52796f 0%, #2f3e46 100%);
+      --primary: #354f52;
+      --indigo: #2f3e46;
+      --bg: #f4f7f5;
+      --card: #ffffff;
+      --text: #1e293b;
+      --sub: #64748b;
+      --border: #dce5e0;
+      --danger: #ef4444;
+      --success: #0d9488;
+      --pilates-btn: #ec4899;
+      --hyrox-btn: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); min-height: 100vh; color: var(--text); display: flex; justify-content: center; padding: 12px; }
+    .app-wrap { width: 100%; max-width: 460px; background: var(--card); border-radius: 24px; box-shadow: 0 12px 32px rgba(47, 62, 70, 0.12); overflow: hidden; position: relative; padding-bottom: 84px; border: 1px solid var(--border); }
+    
+    .hero-header { background: var(--grad-main); color: #fff; padding: 20px 18px 18px; text-align: center; position: relative; }
+    .logo-box { width: 76px; height: 76px; margin: 0 auto 10px; border-radius: 20px; background: #fff; padding: 3px; box-shadow: 0 6px 16px rgba(0,0,0,0.18); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .logo-box img { width: 100%; height: 100%; object-fit: cover; border-radius: 17px; }
+    .brand-en { font-size: 22px; font-weight: 900; letter-spacing: 0.5px; text-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+    .brand-ko { font-size: 13px; font-weight: 700; background: rgba(255,255,255,0.18); display: inline-block; padding: 4px 12px; border-radius: 20px; margin-top: 4px; }
+    .body-pad { padding: 18px; }
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* 탭 스타일 */
+    .tabs { display: flex; background: #f1f5f3; border-radius: 12px; padding: 4px; margin-bottom: 16px; border: 1px solid var(--border); gap: 4px; }
+    .tab { flex: 1; text-align: center; padding: 9px 4px; font-size: 12px; font-weight: 700; color: var(--sub); border-radius: 9px; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+    .tab.active { background: var(--grad-main); color: #fff; box-shadow: 0 2px 8px rgba(53, 79, 82, 0.25); }
+
+    /* 입력 폼 및 버튼 */
+    label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 5px; }
+    input, select, textarea { width: 100%; padding: 11px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 14px; margin-bottom: 12px; outline: none; background: #fff; color: var(--text); }
+    input:focus, select:focus, textarea:focus { border-color: var(--primary); background: #f8faf9; }
+    button { width: 100%; padding: 12px; border: none; border-radius: 11px; font-size: 14px; font-weight: 800; cursor: pointer; transition: 0.18s; color: #fff; background: var(--grad-main); }
+    button:active { transform: scale(0.98); }
+    button:disabled { background: #cbd5e1 !important; color: #64748b !important; cursor: not-allowed; }
+    .btn-sub { background: #e2e8f0; color: #334155; font-weight: 700; }
+    .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+    .btn-indigo { background: linear-gradient(135deg, #475569, #334155); color: #fff; }
+    .btn-green { background: linear-gradient(135deg, #52796f, #354f52); color: #fff; }
+    .btn-pilates { background: var(--grad-pilates); color: #fff; box-shadow: 0 4px 10px rgba(236, 72, 153, 0.25); }
+    .btn-hyrox { background: var(--grad-hyrox); color: #fff; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25); }
+    .btn-sm { width: auto; padding: 6px 11px; font-size: 12px; border-radius: 8px; }
+
+    /* 캐릭터 애니메이션 */
+    @keyframes pixelBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+    .pixel-master { animation: pixelBounce 0.85s steps(2, end) infinite; }
+    .pixel-pet { animation: pixelBounce 0.65s steps(2, end) infinite; }
+
+    .btn-level-guide {
+      background: #1e293b; color: #fde047; border: 2px solid #eab308;
+      padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 800;
+      cursor: pointer; box-shadow: 0 3px 0 #0f172a; transition: 0.1s; width: auto;
+    }
+    .btn-level-guide:active { transform: translateY(3px); box-shadow: none; }
+
+    /* 노란색 회원 핵심 정보 카드 (유지) */
+    .member-yellow-banner { background: linear-gradient(135deg, #fef08a 0%, #fde047 100%); border: 2px solid #eab308; border-radius: 18px; padding: 16px; margin-bottom: 16px; box-shadow: 0 6px 18px rgba(234, 179, 8, 0.2); color: #422006; }
+    .prog-badge { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; color: #fff; display: inline-block; }
+    .prog-pilates { background: var(--grad-pilates); }
+    .prog-hyrox { background: var(--grad-hyrox); }
+    .prog-both { background: var(--grad-both); }
+    .ticket-box { background: rgba(255,255,255,0.9); border-radius: 12px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; }
+    .exp-bar-bg { width: 100%; height: 9px; background: rgba(255,255,255,0.65); border-radius: 6px; margin-top: 8px; overflow: hidden; }
+    .exp-bar-fill { height: 100%; background: linear-gradient(90deg, #52796f, #2f3e46); border-radius: 6px; transition: width 0.3s; }
+
+    /* 달력 그리드 */
+    .cal-header-days { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 4px; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 14px; }
+    .cal-cell { padding: 8px 2px; border: 1px solid #e2e8f0; border-radius: 9px; text-align: center; cursor: pointer; background: #fff; font-size: 12px; font-weight: 700; position: relative; color: #334155; }
+    .cal-cell.empty { background: transparent; border: none; cursor: default; }
+    .cal-cell.active { background: var(--grad-main); color: #fff; border-color: transparent; box-shadow: 0 3px 8px rgba(53, 79, 82, 0.3); }
+    .cal-cell.multi-selected { background: #52796f; color: #fff; border-color: #354f52; }
+    .cal-dot { width: 5px; height: 5px; border-radius: 50%; background: #52796f; margin: 2px auto 0; }
+    .cal-cell.active .cal-dot { background: #fde047; }
+
+    /* 수업 카드 & 아코디언 */
+    .class-card { border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 14px; margin-bottom: 10px; background: #fff; transition: 0.2s; position: relative; }
+    .class-card.pilates { border-left: 6px solid #ec4899; }
+    .class-card.hyrox { border-left: 6px solid #3b82f6; }
+    .class-card.closed { opacity: 0.65; background: #f8fafc; border-left-color: #94a3b8; }
+    .accordion-body { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #cbd5e1; }
+    .accordion-body.open { display: block; }
+
+    /* 모달 창 */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center; padding: 14px; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { width: 100%; max-width: 430px; max-height: 90vh; overflow-y: auto; background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.25); }
+    .modal-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+
+    /* 플로팅 쪽지 버튼 & 채팅방 */
+    .floating-letter-btn { position: fixed; bottom: 20px; right: max(18px, calc(50% - 215px)); background: linear-gradient(135deg, #fde047 0%, #eab308 100%); color: #422006; padding: 12px 16px; border-radius: 30px; font-weight: 900; font-size: 13px; box-shadow: 0 6px 20px rgba(202, 138, 4, 0.35); cursor: pointer; z-index: 900; display: none; align-items: center; gap: 6px; border: 2px solid #fff; }
+    .unread-badge { background: #dc2626; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 12px; font-weight: 900; }
+    .kakao-room { background: #d6e4dc; border-radius: 14px; padding: 12px; height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+    .msg-row { display: flex; flex-direction: column; max-width: 82%; }
+    .msg-row.mine { align-self: flex-end; align-items: flex-end; }
+    .msg-row.theirs { align-self: flex-start; align-items: flex-start; }
+    .msg-sender { font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 2px; }
+    .msg-bubble { padding: 9px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4; word-break: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+    .msg-row.mine .msg-bubble { background: #fef08a; color: #1e293b; border-top-right-radius: 2px; }
+    .msg-row.theirs .msg-bubble { background: #ffffff; color: #1e293b; border-top-left-radius: 2px; }
+    .msg-time { font-size: 10px; color: #475569; margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<div class="app-wrap">
+  <!-- 상단 로고 헤더 -->
+  <div class="hero-header">
+    <div class="logo-box" id="main-logo-box">
+      <svg viewBox="0 0 100 100" width="60" height="60">
+        <defs><linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#52796f"/><stop offset="100%" stop-color="#2f3e46"/></linearGradient></defs>
+        <rect width="100" height="100" rx="22" fill="url(#lg1)"/>
+        <path d="M22 68 L50 22 L78 68 Z" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+        <circle cx="50" cy="54" r="9" fill="#fde047"/>
+      </svg>
+    </div>
+    <div class="brand-en">오름 (OREUM GX)</div>
+    <div class="brand-ko">필라테스 &amp; 하이록스</div>
+  </div>
+
+  <div class="body-pad">
+    <!-- 1. 첫 화면: 로그인 / 가입 -->
+    <div id="view-auth" class="section active">
+      <div style="text-align:center; margin-bottom: 18px;">
+        <p style="font-size:13px; font-weight:800; color:#334155; margin-bottom:10px; line-height:1.45;">
+          쉽고 간편하게 수업예약하세요.<br>이름과 전화번호로 로그인할 수 있습니다.
+        </p>
+        <a href="https://link.inpock.co.kr/real_health_consume" target="_blank" style="display:block; background:linear-gradient(135deg, #fef08a 0%, #fde047 100%); color:#422006; padding:11px 14px; border-radius:12px; font-size:13px; font-weight:900; text-decoration:none; border:2px solid #eab308; box-shadow:0 4px 10px rgba(234,179,8,0.2);">
+          🛒 오름에서 추천하는 가성비 고품질 다이어트 식품
+        </a>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" id="auth-tab-login" onclick="switchAuthTab('login')">회원 로그인</div>
+        <div class="tab" id="auth-tab-signup" onclick="switchAuthTab('signup')">회원가입</div>
+        <div class="tab" id="auth-tab-admin" onclick="switchAuthTab('admin')">관리자/선생님</div>
+      </div>
+      <div id="form-member-login">
+        <label>회원 이름</label><input type="text" id="login-member-name" placeholder="예: 최종섭">
+        <label>휴대폰 번호 (숫자만)</label><input type="tel" id="login-member-phone" placeholder="01012345678" onkeydown="if(event.key==='Enter') loginMember()">
+        <button type="button" onclick="loginMember()">수업 예약하러 입장하기</button>
+      </div>
+      <div id="form-member-signup" style="display:none;">
+        <label>이름 (실명)</label><input type="text" id="signup-name" placeholder="예: 최종섭">
+        <label>닉네임 또는 호칭</label><input type="text" id="signup-nickname" placeholder="예: 잭슨">
+        <div style="display:flex; gap:8px;">
+          <div style="flex:1;"><label>성별</label><select id="signup-gender"><option value="여">여성</option><option value="남">남성</option></select></div>
+          <div style="flex:1.4;"><label>수강 종목</label><select id="signup-program"><option value="both">통합 (필라+하이록스)</option><option value="pilates">필라테스 전용</option><option value="hyrox">하이록스 전용</option></select></div>
+        </div>
+        <label>휴대폰 번호 (숫자만)</label><input type="tel" id="signup-phone" placeholder="01012345678">
+        <button type="button" onclick="selfSignupMember()">회원가입 완료 (40일 자동설정)</button>
+      </div>
+      <div id="form-admin-login" style="display:none;">
+        <label>관리자 / 선생님 전화번호</label><input type="tel" id="login-admin-phone" placeholder="01012345678" onkeydown="if(event.key==='Enter') loginAdmin()">
+        <button type="button" class="btn-indigo" onclick="loginAdmin()">관리자 입장</button>
+      </div>
+    </div>
+
+    <!-- 2. 회원 메인 화면 -->
+    <div id="view-member" class="section">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span style="font-size:13px; font-weight:900; color:var(--primary);" id="disp-season-title">🔥 2026년 시즌 진행중</span>
+        <button type="button" class="btn-sub btn-sm" onclick="logout()">로그아웃</button>
+      </div>
+
+      <!-- 노란색 회원 정보 배너 -->
+      <div class="member-yellow-banner">
+        <!-- 1. 상단: 이름 및 마스터 혜택 (? 버튼 포함) -->
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:18px; font-weight:900;" id="disp-member-fullname">회원이름</span>
+            <span id="disp-member-prog-badge" class="prog-badge prog-both">통합</span>
+          </div>
+          <div style="font-size:12px; font-weight:800; color:#713f12; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span id="disp-benefit-text">🎁 마스터 혜택 확인중</span>
+            <button type="button" onclick="openModal('modal-level-guide')" style="width:20px; height:20px; padding:0; border-radius:50%; background:#422006; color:#fde047; font-size:11px; font-weight:900; display:inline-flex; align-items:center; justify-content:center;">?</button>
+          </div>
+        </div>
+
+        <!-- 2. 중단: 캐릭터(인간) & 펫 창 2개 (사람 크기 85% 꽉 차게 확대) -->
+        <div style="display:flex; gap:10px; margin-bottom:14px;">
+          <div style="flex:1; background:rgba(255,255,255,0.9); border:2px solid #ca8a04; border-radius:14px; padding:8px 4px 6px; display:flex; flex-direction:column; align-items:center; box-shadow:inset 0 2px 6px rgba(0,0,0,0.08); overflow:hidden;">
+            <div style="font-size:12px; font-weight:900; color:#1e1b4b; margin-bottom:2px;" id="disp-master-lv">마스터Lv.1</div>
+            <div id="member-pixel-master" style="width:135px; height:135px; display:flex; align-items:center; justify-content:center; overflow:hidden;"></div>
+          </div>
+          <div style="flex:1; background:rgba(255,255,255,0.9); border:2px solid #ca8a04; border-radius:14px; padding:8px 4px 6px; display:flex; flex-direction:column; align-items:center; box-shadow:inset 0 2px 6px rgba(0,0,0,0.08); overflow:hidden;">
+            <div style="font-size:12px; font-weight:900; color:#db2777; margin-bottom:2px;" id="disp-season-lv">시즌Lv.1</div>
+            <div id="member-pixel-pet" style="width:135px; height:135px; display:flex; align-items:flex-end; justify-content:center; padding-bottom:6px; overflow:hidden;"></div>
+          </div>
+        </div>
+
+        <!-- 3. 하단: 티켓, 경험치 바, 진화도 버튼 -->
+        <div class="ticket-box">
+          <div>누적 <strong id="disp-tot-cnt">0</strong>회 / 잔여 <strong style="color:#db2777; font-size:16px;" id="disp-rem-cnt">0</strong>회</div>
+          <div style="text-align:right; color:#b45309; font-size:12px;" id="disp-expiry-str">0000-00-00까지</div>
+        </div>
+        <div class="exp-bar-bg"><div class="exp-bar-fill" id="disp-exp-bar" style="width:10%;"></div></div>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+          <span style="font-size:11px; font-weight:800; color:#713f12;" id="disp-exp-detail">이번 시즌 출석 0회</span>
+          <button type="button" class="btn-level-guide" onclick="openModal('modal-level-guide')">🔍 10단계 진화도</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" id="mtab-cal" onclick="switchMemberTab('cal')">수업 달력</div>
+        <div class="tab" id="mtab-mybook" onclick="switchMemberTab('mybook')">내 예약</div>
+      </div>
+      <div id="mview-cal">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <button type="button" class="btn-sub btn-sm" onclick="changeCalendarMonth(-1)">◀</button>
+          <strong style="font-size:15px;" id="member-cal-month-title">2026년 11월</strong>
+          <button type="button" class="btn-sub btn-sm" onclick="changeCalendarMonth(1)">▶</button>
+        </div>
+        <div class="cal-header-days"><div style="color:#ef4444;">월</div><div>화</div><div>수</div><div>목</div><div>금</div><div style="color:#3b82f6;">토</div><div style="color:#ef4444;">일</div></div>
+        <div class="cal-grid" id="member-cal-grid"></div>
+        <div style="font-size:14px; font-weight:800; margin-bottom:8px; color:var(--primary);">📅 <span id="member-selected-date-label"></span> 개설 수업</div>
+        <div id="member-class-list">수업을 불러오는 중...</div>
+      </div>
+      <div id="mview-mybook" style="display:none;"><div id="member-mybook-list">조회 중...</div></div>
+    </div>
+
+    <!-- 3. 관리자 화면 -->
+    <div id="view-admin" class="section">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:6px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button type="button" class="btn-green btn-sm" onclick="openAdminAddMemberModal()">+ 회원 등록</button>
+          <button type="button" class="btn-indigo btn-sm" onclick="openModal('modal-logo')">로고 설정</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:12px; font-weight:800;" id="admin-role-badge">👑 대표</span>
+          <button type="button" class="btn-sub btn-sm" onclick="logout()">로그아웃</button>
+        </div>
+      </div>
+
+      <div class="tabs" style="overflow-x:auto;">
+        <div class="tab active" id="atab-cal" onclick="switchAdminTab('cal')">수업관리</div>
+        <div class="tab" id="atab-members" onclick="switchAdminTab('members')">회원관리</div>
+        <div class="tab" id="atab-history" onclick="switchAdminTab('history')">예약로그</div>
+        <div class="tab" id="atab-staff" onclick="switchAdminTab('staff')">선생님/시즌</div>
+        <div class="tab" id="atab-audit" onclick="switchAdminTab('audit')">감사로그</div>
+      </div>
+
+      <!-- (1) 수업 관리 탭 -->
+      <div id="aview-cal">
+        <div style="background:#f8faf9; border:1px solid var(--border); border-radius:14px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:14px; font-weight:800; color:var(--primary); margin-bottom:8px;">✨ 빠른 수업 개설 (종목 선택)</div>
+          <div style="display:flex; gap:6px;">
+            <select id="cls-category" style="flex:1.1; font-weight:800;">
+              <option value="pilates">🩷 필라테스</option>
+              <option value="hyrox">💙 하이록스</option>
+            </select>
+            <input type="text" id="cls-title" placeholder="수업명 (예: 코어 필라테스)" style="flex:1.4;">
+          </div>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="cls-instructor" list="staff-datalist" placeholder="선생님 이름" style="flex:1;">
+            <datalist id="staff-datalist"></datalist>
+            <input type="time" id="cls-time" value="19:00" style="flex:1;">
+          </div>
+          <div style="display:flex; gap:6px;">
+            <input type="number" id="cls-max" value="8" min="1" placeholder="최대 정원" style="flex:1;">
+            <select id="cls-cutoff" style="flex:1;">
+              <option value="2">2시간 전 마감</option>
+              <option value="1" selected>1시간 전 마감</option>
+            </select>
+          </div>
+          <button type="button" onclick="openMultiDateClassModal()">이 수업 개설하기 (다중 날짜 복사)</button>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <button type="button" class="btn-sub btn-sm" onclick="changeCalendarMonth(-1)">◀</button>
+          <strong style="font-size:15px;" id="admin-cal-month-title">2026년 11월</strong>
+          <button type="button" class="btn-sub btn-sm" onclick="changeCalendarMonth(1)">▶</button>
+        </div>
+        <div class="cal-header-days"><div style="color:#ef4444;">월</div><div>화</div><div>수</div><div>목</div><div>금</div><div style="color:#3b82f6;">토</div><div style="color:#ef4444;">일</div></div>
+        <div class="cal-grid" id="admin-cal-grid"></div>
+        <div style="font-size:14px; font-weight:800; margin-bottom:8px; color:var(--primary);">📅 <span id="admin-selected-date-label"></span> 수업 목록</div>
+        <div id="admin-class-list">불러오는 중...</div>
+      </div>
+
+      <!-- (2) 회원 목록 탭 -->
+      <div id="aview-members" style="display:none;">
+        <input type="text" id="admin-member-search" placeholder="회원 이름 또는 전화번호 검색..." oninput="renderAdminMemberList()">
+        <div id="admin-member-list">불러오는 중...</div>
+      </div>
+
+      <!-- (3) 예약 로그 탭 (복구 완료) -->
+      <div id="aview-history" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <strong style="font-size:14px; color:var(--primary);">📋 최근 수업 예약/취소 내역</strong>
+          <button type="button" class="btn-sub btn-sm" onclick="loadAdminBookingHistory()">새로고침</button>
+        </div>
+        <div id="admin-booking-history-list">불러오는 중...</div>
+      </div>
+
+      <!-- (4) 선생님/시즌 탭 (선생님 등록 및 시즌 관리 완벽 복구) -->
+      <div id="aview-staff" style="display:none;">
+        <div class="class-card" style="margin-bottom:14px;">
+          <div style="font-weight:800; font-size:14px; margin-bottom:8px; color:var(--primary);">👩‍🏫 선생님 / 관리자 등록</div>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="staff-name" placeholder="선생님 성함" style="flex:1;">
+            <select id="staff-role" style="flex:1;">
+              <option value="instructor">일반강사</option>
+              <option value="master">대표관리자</option>
+            </select>
+          </div>
+          <input type="tel" id="staff-phone" placeholder="전화번호 (숫자만 입력)">
+          <button type="button" class="btn-indigo" onclick="registerStaff()">+ 선생님 추가하기</button>
+          <div id="staff-list-box" style="margin-top:14px; display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+
+        <div class="class-card">
+          <div style="font-weight:800; font-size:14px; margin-bottom:8px; color:var(--primary);">🛡️ 시즌 전환 & 정산 관리 (연 3회 / 4개월 주기)</div>
+          <label>현재 진행 시즌 선택</label>
+          <select id="season-title-select">
+            <option value="2026년 1시즌 (1~4월)">2026년 1시즌 (1~4월)</option>
+            <option value="2026년 2시즌 (5~8월)">2026년 2시즌 (5~8월)</option>
+            <option value="2026년 3시즌 (9~12월)">2026년 3시즌 (9~12월)</option>
+            <option value="2027년 1시즌 (1~4월)">2027년 1시즌 (1~4월)</option>
+            <option value="2027년 2시즌 (5~8월)">2027년 2시즌 (5~8월)</option>
+            <option value="2027년 3시즌 (9~12월)">2027년 3시즌 (9~12월)</option>
+          </select>
+          <button type="button" class="btn-sub" onclick="saveSeasonSettings()" style="margin-bottom:8px;">선택한 시즌 명칭 적용하기</button>
+          <button type="button" class="btn-danger" onclick="settleSeasonToMaster()">🔄 시즌 종료 정산 (시즌레벨 40% 마스터 반영 후 초기화)</button>
+        </div>
+      </div>
+
+      <!-- (5) 감사 로그 탭 (복구 완료) -->
+      <div id="aview-audit" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <strong style="font-size:14px; color:var(--primary);">🔍 관리자 변경 감사로그</strong>
+          <button type="button" class="btn-sub btn-sm" onclick="loadAdminAuditLogs()">새로고침</button>
+        </div>
+        <div id="admin-audit-list">불러오는 중...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 플로팅 쪽지 버튼 -->
+<div class="floating-letter-btn" id="floating-msg-btn" onclick="openMessengerModal()">
+  <span>✉️</span><span id="floating-msg-label">쪽지함</span><span class="unread-badge" id="floating-unread-cnt" style="display:none;">0</span>
+</div>
+
+<!-- 모달 1: 로고 등록 -->
+<div class="modal-overlay" id="modal-logo">
+  <div class="modal-box">
+    <div class="modal-title"><span>🖼️ 로고 설정</span><button type="button" class="btn-sub btn-sm" onclick="closeModal('modal-logo')">닫기</button></div>
+    <input type="file" id="logo-file-input" accept="image/*" onchange="loadLogoFile(event)">
+    <canvas id="logo-canvas" width="220" height="220" style="border:2px solid var(--primary); display:block; margin:10px auto; border-radius:16px;"></canvas>
+    <button type="button" onclick="saveCroppedLogo()">로고 저장 및 적용하기</button>
+  </div>
+</div>
+
+<!-- 모달 2: 다중 수업 개설 -->
+<div class="modal-overlay" id="modal-multidate">
+  <div class="modal-box">
+    <div class="modal-title"><span>📅 복수 날짜 일괄 개설</span><button type="button" class="btn-sub btn-sm" onclick="closeModal('modal-multidate')">닫기</button></div>
+    <div style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap;">
+      <button type="button" class="btn-sub btn-sm" onclick="quickSelectWeekdays([1,3,5])">월/수/금 전체</button>
+      <button type="button" class="btn-sub btn-sm" onclick="quickSelectWeekdays([2,4])">화/목 전체</button>
+      <button type="button" class="btn-sub btn-sm" onclick="clearMultiDates()">선택 초기화</button>
+    </div>
+    <div class="cal-grid" id="multi-cal-grid" style="margin-top:10px;"></div>
+    <button type="button" onclick="confirmCreateMultiClasses()">선택한 날짜에 일괄 개설하기</button>
+  </div>
+</div>
+
+<!-- 모달 3: 회원 등록/수정 -->
+<div class="modal-overlay" id="modal-member-edit">
+  <div class="modal-box">
+    <div class="modal-title"><span id="member-modal-title">회원 정보 관리</span><button type="button" class="btn-sub btn-sm" onclick="closeModal('modal-member-edit')">닫기</button></div>
+    <input type="hidden" id="edit-m-id">
+    <div style="display:flex; gap:6px;"><input type="text" id="edit-m-name" placeholder="실명" style="flex:1;"><input type="text" id="edit-m-nick" placeholder="호칭/닉네임" style="flex:1;"></div>
+    <div style="display:flex; gap:6px;">
+      <select id="edit-m-gender" style="flex:1;"><option value="여">여성</option><option value="남">남성</option></select>
+      <select id="edit-m-prog" style="flex:1.4;"><option value="both">통합 (필라+하이)</option><option value="pilates">필라테스 전용</option><option value="hyrox">하이록스 전용</option></select>
+    </div>
+    <input type="tel" id="edit-m-phone" placeholder="전화번호 (숫자만)">
+    
+    <div style="background:#fefce8; border:1px solid #fde047; border-radius:12px; padding:12px; margin-bottom:12px;">
+      <div style="font-size:13px; font-weight:800; color:#854d0e; margin-bottom:8px;">🎟️ 누적/잔여 횟수 & 유효기간</div>
+      <div style="display:flex; gap:6px;">
+        <div style="flex:1;"><label>누적 횟수(마스터용)</label><input type="number" id="edit-m-tot" placeholder="총횟수" oninput="syncMasterLvFromTot()"></div>
+        <div style="flex:1;"><label>현재 잔여횟수</label><input type="number" id="edit-m-rem" placeholder="잔여횟수"></div>
+      </div>
+      <div style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap;">
+        <button type="button" class="btn-sub btn-sm" onclick="quickAddTicket(10, 40)">+10회(40일)</button>
+        <button type="button" class="btn-sub btn-sm" onclick="quickAddTicket(20, 80)">+20회(80일)</button>
+        <button type="button" class="btn-sub btn-sm" onclick="quickAddTicket(30, 120)">+30회(120일)</button>
+        <button type="button" class="btn-sub btn-sm" onclick="quickAddTicket(1, 0)">+1회</button>
+        <button type="button" class="btn-sub btn-sm" onclick="quickAddTicket(-1, 0)">-1회(차감)</button>
+      </div>
+      <label>유효기간 만료일</label>
+      <input type="date" id="edit-m-expiry" style="margin-bottom:8px;">
+      <div style="display:flex; gap:6px;">
+        <button type="button" class="btn-indigo btn-sm" style="flex:1;" onclick="addExpiryDays(10)">+10일 연장</button>
+        <button type="button" class="btn-green btn-sm" style="flex:1;" onclick="addExpiryDays(40)">+40일 연장</button>
+      </div>
+    </div>
+
+    <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px;">
+      <div style="font-size:13px; font-weight:800; color:var(--primary); margin-bottom:8px;">🛡️ 마스터 & 시즌 레벨 확인/조정</div>
+      <div style="display:flex; gap:6px;">
+        <div style="flex:1;"><label>마스터Lv</label><input type="number" id="edit-m-master-lv" min="1" max="10"></div>
+        <div style="flex:1;"><label>시즌 출석횟수</label><input type="number" id="edit-m-season-exp" oninput="syncSeasonLvFromExp()"></div>
+        <div style="flex:1;"><label>시즌Lv</label><input type="number" id="edit-m-season-lv" min="1" max="10"></div>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button type="button" onclick="saveMemberModal()">저장하기</button>
+      <button type="button" class="btn-danger" id="btn-delete-member" style="width:90px;" onclick="deleteMemberModal()">삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- 모달 4: 10단계 진화도 & 마스터 혜택 가이드 (? 버튼 연동) -->
+<div class="modal-overlay" id="modal-level-guide">
+  <div class="modal-box">
+    <div class="modal-title"><span>🛡️ 오름 GX 10단계 진화도 & 마스터 혜택</span><button type="button" class="btn-sub btn-sm" onclick="closeModal('modal-level-guide')">닫기</button></div>
+    <div style="background:#fefce8; border:1px solid #fde047; padding:12px; border-radius:12px; font-size:12px; color:#713f12; margin-bottom:14px; line-height:1.55; font-weight:700;">
+      🌟 <b>시즌 레벨을 모아 마스터 레벨을 올려보세요!</b><br>
+      • <b>시즌 레벨 (펫 진화):</b> 연 3회(4개월 주기) 시즌 동안 회원권 소모(출석) 시 펫이 빠르게 성장합니다. (주 2회씩 4개월 출석 시 Lv.10 달성!)<br>
+      • <b>마스터 레벨 (캐릭터 진화 & 혜택):</b> 수업 10회당 1레벨 상승(Lv.5부터는 20회당 1레벨 상승)하며, 시즌 종료 시 달성한 시즌 레벨의 40%가 마스터 경험치로 추가 합산됩니다.<br>
+      <span style="color:#dc2626; display:block; margin-top:6px;">⚠️ <b>유의사항:</b> 마스터 레벨은 영구 유지되지만, <b>만료 후 2개월(60일) 이상 장기 미등록 시</b> 모든 혜택이 일시 소멸되며 <b>10회 이상 재결제 시</b> 혜택이 다시 부활합니다.</span>
+    </div>
+    <div id="shield-guide-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+  </div>
+</div>
+
+<!-- 모달 5: 쪽지함 (단체 공지 & 1:1 대화 완벽 작동) -->
+<div class="modal-overlay" id="modal-messenger">
+  <div class="modal-box">
+    <div class="modal-title"><span id="msg-modal-title">✉️ 오름 톡 (선생님께 쪽지)</span><button type="button" class="btn-sub btn-sm" onclick="closeModal('modal-messenger')">닫기</button></div>
+    <div id="admin-msg-controls" style="display:none; margin-bottom:10px;">
+      <div style="background:#f1f5f3; padding:10px; border-radius:12px; margin-bottom:10px; border:1px solid var(--border);">
+        <label>📢 회원 전체/종목별 공지 쪽지 발송</label>
+        <div style="display:flex; gap:6px; margin-bottom:6px;">
+          <select id="broadcast-target" style="margin-bottom:0; width:130px;">
+            <option value="all">전체 회원</option>
+            <option value="pilates">필라테스 회원</option>
+            <option value="hyrox">하이록스 회원</option>
+          </select>
+          <input type="text" id="broadcast-text" placeholder="공지 내용 입력..." style="margin-bottom:0; flex:1;">
+          <button type="button" class="btn-sm" onclick="sendBroadcastMessage()">발송</button>
+        </div>
+      </div>
+      <label>1:1 대화할 회원 선택</label>
+      <select id="admin-chat-member-select" onchange="loadChatRoomMessages()"></select>
+    </div>
+    <div class="kakao-room" id="kakao-chat-box"></div>
+    <div style="display:flex; gap:6px;">
+      <input type="text" id="chat-input-text" placeholder="메시지를 입력하세요..." style="margin-bottom:0; flex:1;" onkeydown="if(event.key==='Enter') sendChatMessage()">
+      <button type="button" style="width:74px;" onclick="sendChatMessage()">전송</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyCejUg9Ij8VvnRsOiK6sEOaKkJ73yB5rKY",
+    authDomain: "allabouttraining-181eb.firebaseapp.com",
+    projectId: "allabouttraining-181eb",
+    storageBucket: "allabouttraining-181eb.firebasestorage.app",
+    messagingSenderId: "711288766971",
+    appId: "1:711288766971:web:375b682e06636ae7f80b5e"
+  };
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const COL_SETTINGS = "oreum_gx_settings", COL_ADMINS = "oreum_gx_admins", COL_MEMBERS = "oreum_gx_members", COL_CLASSES = "oreum_gx_classes", COL_BOOKINGS = "oreum_gx_bookings", COL_MESSAGES = "oreum_gx_messages", COL_AUDIT = "oreum_gx_audit_logs", STORAGE_KEY = "oreum_gx_auth_v1";
+
+  let appSettings = { currentSeason: "" };
+  let currentUser = null;
+  let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
+  let selectedDateStr = formatDate(new Date());
+  let multiSelectedDates = new Set(), allMembersCache = [], monthClassesCache = [], staffListCache = [];
+
+  // 1년에 3번 (4개월 주기) 기본 시즌 자동 계산
+  function getDefaultSeasonName() {
+    const m = new Date().getMonth() + 1, y = new Date().getFullYear();
+    const s = (m <= 4) ? "1시즌 (1~4월)" : (m <= 8) ? "2시즌 (5~8월)" : "3시즌 (9~12월)";
+    return `${y}년 ${s}`;
+  }
+
+  // [시즌 레벨] 4개월 동안 주 2회(약 32회) 출석 시 10레벨 달성
+  const SEASON_THRESHOLDS = [0, 3, 6, 10, 14, 18, 22, 26, 29, 32];
+  function calcSeasonLevel(exp) {
+    const e = Number(exp) || 0;
+    for (let i = 9; i >= 0; i--) { if (e >= SEASON_THRESHOLDS[i]) return i + 1; }
+    return 1;
+  }
+
+  // [마스터 레벨] 10회당 1레벨 상승, 5레벨(40회)부터는 20회당 1레벨 상승
+  // Lv.1(0~9), Lv.2(10~19), Lv.3(20~29), Lv.4(30~39), Lv.5(40~59), Lv.6(60~79), Lv.7(80~99), Lv.8(100~119), Lv.9(120~139), Lv.10(140+)
+  const MASTER_THRESHOLDS = [0, 10, 20, 30, 40, 60, 80, 100, 120, 140];
+  function calcMasterLevel(totalCount) {
+    const t = Number(totalCount) || 0;
+    for (let i = 9; i >= 0; i--) { if (t >= MASTER_THRESHOLDS[i]) return i + 1; }
+    return 1;
+  }
+
+  // [마스터 레벨별 혜택 정의]
+  function getMasterBenefitText(lv) {
+    const l = Math.max(1, Math.min(10, Number(lv) || 1));
+    const map = {
+      1: "혜택 없음 (10회 달성 시 Lv.2 할인 시작!)",
+      2: "재등록 5,000원 무조건 할인",
+      3: "재등록 10,000원 할인",
+      4: "재등록 10,000원 할인 + 10회 결제당 필라테스 1회 추가 증정",
+      5: "재등록 15,000원 할인 + 필라 10회 구매마다 2회 증정",
+      6: "재등록 20,000원 할인 + 필라 10회 구매마다 2회 추가 증정",
+      7: "재등록 20,000원 할인 + 필라 10회 구매마다 2회 추가 증정",
+      8: "재등록 20,000원 할인 + 필라 10회 구매마다 2회 추가 증정",
+      9: "재등록 20,000원 할인 + 10회 구매당 3회 증정 + 헬스장 1만원 추가시 이용가능",
+      10: "👑 재등록 30,000원 할인 + 10회 구매당 3회 추가 증정 + 헬스장 무료!"
+    };
+    return map[l];
+  }
+
+  // 2개월(60일) 장기 미등록 여부 체크
+  function isLongTermInactive(member) {
+    if (!member || !member.expiryDate) return false;
+    if ((member.remainingSessions || 0) > 0) return false;
+    const expDate = new Date(member.expiryDate + "T23:59:59");
+    const diffDays = (new Date() - expDate) / (1000 * 60 * 60 * 24);
+    return diffDays >= 60;
+  }
+
+  // [핵심] 40장 PNG 캐릭터 렌더링 (사람 크기는 확 키우고, 펫 크기는 적절히 유지)
+  function getPixelCharacter(type, gender, level, isSmallBox = false) {
+    const lv = Math.max(1, Math.min(10, Number(level) || 1));
+    const prefix = (gender === "남") ? "m" : "w";
+    const fileName = `${prefix}_${type}_${lv}-removebg-preview.png`;
+    const animClass = (type === "master") ? "pixel-master" : "pixel-pet";
+
+    if (isSmallBox) {
+      // 모달 및 회원목록의 작은 아이콘 박스용 (사람은 조금 더 크게 확대)
+      const scale = (type === "master") ? 1.35 : 1.05;
+      return `<img src="./images/${fileName}" class="${animClass}" style="width:100%; height:100%; object-fit:contain; transform:scale(${scale});" alt="${lv}단계">`;
+    }
+
+    if (type === "master") {
+      // 메인 화면 사람 캐릭터: 이미지 내부 여백을 감안해 박스의 85% 이상 차도록 대폭 확대
+      const size = 108 + (lv * 3.5); // Lv.1: 111.5px ~ Lv.10: 143px
+      const scale = 1.15 + (lv * 0.02); // 추가 스케일 보정으로 시원하게 꽉 차도록 설정
+      return `<img src="./images/${fileName}" class="${animClass}" style="width:${size}px; height:${size}px; object-fit:contain; transform:scale(${scale}); transform-origin:center center;" alt="마스터 ${lv}단계">`;
+    } else {
+      // 메인 화면 펫(개/고양이): 대표님이 만족하신 기존 비율 유지
+      const size = 72 + (lv * 4.5);
+      return `<img src="./images/${fileName}" class="${animClass}" style="width:${size}px; height:${size}px; max-width:100%; max-height:100%; object-fit:contain;" alt="시즌 ${lv}단계">`;
+    }
+  }
+
+  function formatDate(d) { const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; }
+  function addDaysToDateStr(ds, d) { const dt = ds?new Date(ds+"T00:00:00"):new Date(); dt.setDate(dt.getDate()+d); return formatDate(dt); }
+  function getProgLabel(t) { return t==="pilates"?{text:"필라테스",cls:"prog-pilates"}:t==="hyrox"?{text:"하이록스",cls:"prog-hyrox"}:{text:"필라+하이록스",cls:"prog-both"}; }
+
+  async function addAuditLog(action, detail) {
+    try {
+      await db.collection(COL_AUDIT).add({
+        actor: currentUser?.name || "관리자",
+        action,
+        detail,
+        createdAt: new Date().toISOString()
+      });
+    } catch(e) {}
+  }
+
+  async function initApp() {
+    try {
+      const doc = await db.collection(COL_SETTINGS).doc("main").get();
+      if (doc.exists) { appSettings = {...appSettings, ...doc.data()}; }
+      if (!appSettings.currentSeason) appSettings.currentSeason = getDefaultSeasonName();
+      applyLogoAndSeasonUI();
+      
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.type === "member" && parsed.phone) {
+          const snap = await db.collection(COL_MEMBERS).where("phone","==",parsed.phone).get();
+          if (!snap.empty) { currentUser = {role:"member", id:snap.docs[0].id, ...snap.docs[0].data()}; return enterMemberView(); }
+        } else if (parsed.type === "admin" && parsed.phone) {
+          const snap = await db.collection(COL_ADMINS).where("phone","==",parsed.phone).get();
+          if (!snap.empty) { currentUser = {role:snap.docs[0].data().role, id:snap.docs[0].id, ...snap.docs[0].data()}; return enterAdminView(); }
+        }
+      }
+    } catch(e){}
+  }
+  initApp();
+
+  function applyLogoAndSeasonUI() {
+    if (appSettings.logoBase64) document.getElementById("main-logo-box").innerHTML = `<img src="${appSettings.logoBase64}">`;
+    const sTitle = appSettings.currentSeason || getDefaultSeasonName();
+    document.getElementById("disp-season-title").innerText = `🔥 ${sTitle}`;
+    const sel = document.getElementById("season-title-select");
+    if (sel) sel.value = sTitle;
+  }
+
+  // 모달 내 10단계 진화 가이드 렌더링
+  function renderLevelGuideModal() {
+    const box = document.getElementById("shield-guide-list");
+    if (!box) return;
+    box.innerHTML = "";
+    const gender = currentUser?.gender || "여";
+    
+    for (let t = 1; t <= 10; t++) {
+      const reqMaster = MASTER_THRESHOLDS[t - 1];
+      const reqSeason = SEASON_THRESHOLDS[t - 1];
+      box.innerHTML += `
+        <div style="display:flex; align-items:center; gap:10px; background:#f8faf9; padding:10px; border-radius:12px; border:1px solid #e2e8f0;">
+          <div style="width:52px; height:52px; background:#fff; border-radius:10px; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; overflow:hidden;">${getPixelCharacter("master", gender, t, true)}</div>
+          <div style="width:52px; height:52px; background:#fff; border-radius:10px; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; overflow:hidden;">${getPixelCharacter("pet", gender, t, true)}</div>
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:13px; font-weight:900; color:#1e293b;">Lv.${t} 진화 단계</span>
+              <span style="font-size:10px; font-weight:700; color:#64748b;">마스터 ${reqMaster}회 / 시즌 ${reqSeason}회</span>
+            </div>
+            <div style="font-size:11px; font-weight:800; color:var(--primary); margin-top:3px;">🎁 ${getMasterBenefitText(t)}</div>
+          </div>
+        </div>`;
+    }
+  }
+
+  function switchAuthTab(tab) {
+    document.getElementById("auth-tab-login").classList.toggle("active", tab==="login");
+    document.getElementById("auth-tab-signup").classList.toggle("active", tab==="signup");
+    document.getElementById("auth-tab-admin").classList.toggle("active", tab==="admin");
+    document.getElementById("form-member-login").style.display = tab==="login"?"block":"none";
+    document.getElementById("form-member-signup").style.display = tab==="signup"?"block":"none";
+    document.getElementById("form-admin-login").style.display = tab==="admin"?"block":"none";
+  }
+
+  async function selfSignupMember() {
+    const name=document.getElementById("signup-name").value.trim(), nick=document.getElementById("signup-nickname").value.trim()||name, gender=document.getElementById("signup-gender").value, prog=document.getElementById("signup-program").value, phone=document.getElementById("signup-phone").value.replace(/[^0-9]/g,"");
+    if(!name||!phone) return alert("이름과 휴대폰 번호를 입력하세요.");
+    try {
+      if(!(await db.collection(COL_MEMBERS).where("phone","==",phone).get()).empty) return alert("이미 가입된 전화번호입니다.");
+      const ref = await db.collection(COL_MEMBERS).add({name, nickname:nick, gender, phone, programType:prog, totalSessions:0, remainingSessions:0, expiryDate:addDaysToDateStr("",40), masterLevel:1, seasonExp:0, seasonLevel:1, createdAt:new Date().toISOString()});
+      currentUser = {role:"member", id:ref.id, name, nickname:nick, gender, phone, programType:prog, totalSessions:0, remainingSessions:0, masterLevel:1, seasonExp:0, seasonLevel:1};
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({type:"member", phone}));
+      enterMemberView();
+    } catch(e) { alert(e.message); }
+  }
+
+  async function loginMember() {
+    const name=document.getElementById("login-member-name").value.trim(), phone=document.getElementById("login-member-phone").value.replace(/[^0-9]/g,"");
+    if(!name||!phone) return alert("이름과 휴대폰 번호를 입력하세요.");
+    const snap = await db.collection(COL_MEMBERS).where("phone","==",phone).get();
+    if(snap.empty || snap.docs[0].data().name!==name) return alert("일치하는 회원 정보가 없습니다.");
+    currentUser = {role:"member", id:snap.docs[0].id, ...snap.docs[0].data()};
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({type:"member", phone}));
+    enterMemberView();
+  }
+
+  async function loginAdmin() {
+    const phone=document.getElementById("login-admin-phone").value.replace(/[^0-9]/g,"");
+    if(!phone) return alert("전화번호를 입력하세요.");
+    const all = await db.collection(COL_ADMINS).get();
+    if(all.empty) {
+      if(!confirm("최초 접속입니다. 대표관리자로 등록하시겠습니까?")) return;
+      const ref = await db.collection(COL_ADMINS).add({name:"잭슨 대표", phone, role:"master", createdAt:new Date().toISOString()});
+      currentUser = {id:ref.id, name:"잭슨 대표", role:"master", phone};
+    } else {
+      const snap = await db.collection(COL_ADMINS).where("phone","==",phone).get();
+      if(snap.empty) return alert("등록되지 않은 관리자/선생님 번호입니다.");
+      currentUser = {id:snap.docs[0].id, ...snap.docs[0].data()};
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({type:"admin", phone}));
+    enterAdminView();
+  }
+
+  function logout() { currentUser=null; localStorage.removeItem(STORAGE_KEY); location.reload(); }
+
+  async function enterMemberView() {
+    document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+    document.getElementById("view-member").classList.add("active");
+    document.getElementById("floating-msg-btn").style.display="flex";
+    document.getElementById("floating-msg-label").innerText="선생님께 쪽지";
+    await refreshMemberProfile();
+    renderCalendar("member");
+  }
+
+  // 회원 프로필 및 레벨/혜택 자동 계산 반영
+  async function refreshMemberProfile() {
+    const doc = await db.collection(COL_MEMBERS).doc(currentUser.id).get();
+    if(doc.exists) currentUser = {role:"member", id:doc.id, ...doc.data()};
+    
+    applyLogoAndSeasonUI();
+    document.getElementById("disp-member-fullname").innerText = `${currentUser.name}(${currentUser.nickname||currentUser.name})`;
+    const pInfo = getProgLabel(currentUser.programType);
+    const badge = document.getElementById("disp-member-prog-badge");
+    badge.innerText = pInfo.text;
+    badge.className = `prog-badge ${pInfo.cls}`;
+    
+    const sExp = Number(currentUser.seasonExp) || 0;
+    const seasonLvl = calcSeasonLevel(sExp);
+    
+    // 누적 소모/구매 횟수에 따른 자동 마스터 레벨 계산 (수동 저장된 레벨과 비교해 높은 값 유지)
+    const totCnt = Number(currentUser.totalSessions) || 0;
+    const autoMasterLv = calcMasterLevel(totCnt);
+    const masterLvl = Math.max(Number(currentUser.masterLevel) || 1, autoMasterLv);
+
+    const gender = currentUser.gender || "여";
+    document.getElementById("member-pixel-master").innerHTML = getPixelCharacter("master", gender, masterLvl, false);
+    document.getElementById("member-pixel-pet").innerHTML = getPixelCharacter("pet", gender, seasonLvl, false);
+
+    document.getElementById("disp-master-lv").innerText = `마스터 Lv.${masterLvl}`;
+    document.getElementById("disp-season-lv").innerText = `시즌 Lv.${seasonLvl}`;
+    
+    document.getElementById("disp-tot-cnt").innerText = totCnt;
+    document.getElementById("disp-rem-cnt").innerText = currentUser.remainingSessions || 0;
+    document.getElementById("disp-expiry-str").innerText = `${currentUser.expiryDate || "0000-00-00"}까지`;
+
+    // 경험치 바 계산
+    const nextSeasonReq = SEASON_THRESHOLDS[seasonLvl] || 32;
+    const pct = Math.min(100, Math.round((sExp / 32) * 100));
+    document.getElementById("disp-exp-bar").style.width = `${Math.max(8, pct)}%`;
+    document.getElementById("disp-exp-detail").innerText = seasonLvl < 10
+      ? `이번 시즌 출석 ${sExp}회 (다음 시즌Lv.${seasonLvl+1}까지 ${Math.max(0, nextSeasonReq - sExp)}회)`
+      : `이번 시즌 출석 ${sExp}회 (시즌 최고 레벨 달성! 🎉)`;
+
+    // 2개월 장기 미등록 시 혜택 일시 소멸 체크
+    if (isLongTermInactive(currentUser)) {
+      document.getElementById("disp-benefit-text").innerHTML = `<span style="color:#dc2626;">⚠️ 2개월 미등록 혜택 정지 (10회 결제 시 Lv.${masterLvl} 혜택 부활)</span>`;
+    } else {
+      document.getElementById("disp-benefit-text").innerText = `🎁 마스터 혜택: ${getMasterBenefitText(masterLvl)}`;
+    }
+    renderLevelGuideModal();
+  }
+
+  function switchMemberTab(tab) {
+    document.getElementById("mtab-cal").classList.toggle("active", tab==="cal");
+    document.getElementById("mtab-mybook").classList.toggle("active", tab==="mybook");
+    document.getElementById("mview-cal").style.display = tab==="cal"?"block":"none";
+    document.getElementById("mview-mybook").style.display = tab==="mybook"?"block":"none";
+    if(tab==="mybook") loadMemberMyBookings();
+  }
+
+  function changeCalendarMonth(delta) {
+    calMonth+=delta; if(calMonth<0){calMonth=11; calYear--;} if(calMonth>11){calMonth=0; calYear++;}
+    selectedDateStr = formatDate(new Date(calYear, calMonth, 1));
+    renderCalendar(currentUser?.role==="member"?"member":"admin");
+  }
+
+  async function renderCalendar(mode) {
+    document.getElementById(mode==="member"?"member-cal-month-title":"admin-cal-month-title").innerText = `${calYear}년 ${calMonth+1}월`;
+    const grid = document.getElementById(mode==="member"?"member-cal-grid":"admin-cal-grid"); grid.innerHTML="";
+    const monthPrefix = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+    const snap = await db.collection(COL_CLASSES).where("date",">=",`${monthPrefix}-01`).where("date","<=",`${monthPrefix}-31`).get();
+    monthClassesCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+
+    const now = new Date();
+    for(const c of monthClassesCache) {
+      if(c.status==="open" && ((new Date(`${c.date}T${c.time}:00`)-now)/3600000)<=2 && (c.bookedCount||0)===0) {
+        c.status="auto_closed"; db.collection(COL_CLASSES).doc(c.id).update({status:"auto_closed"});
+      }
+    }
+
+    const dates = new Set(monthClassesCache.map(c=>c.date));
+    const startOff = (new Date(calYear,calMonth,1).getDay()+6)%7;
+    for(let i=0; i<startOff; i++) grid.appendChild(Object.assign(document.createElement("div"),{className:"cal-cell empty"}));
+    for(let d=1; d<=new Date(calYear,calMonth+1,0).getDate(); d++) {
+      const ds = `${monthPrefix}-${String(d).padStart(2,'0')}`;
+      const cell = document.createElement("div"); cell.className=`cal-cell ${ds===selectedDateStr?"active":""}`;
+      cell.innerHTML=`<div>${d}</div>${dates.has(ds)?'<div class="cal-dot"></div>':''}`;
+      cell.onclick=()=>{ selectedDateStr=ds; grid.querySelectorAll(".cal-cell").forEach(e=>e.classList.remove("active")); cell.classList.add("active"); mode==="member"?renderMemberClassesForDate(ds):renderAdminClassesForDate(ds); };
+      grid.appendChild(cell);
+    }
+    mode==="member"?renderMemberClassesForDate(selectedDateStr):renderAdminClassesForDate(selectedDateStr);
+  }
+
+  // 회원 수업 카드 (선생님 이름 중앙에 진하게, 필라테스=핑크 / 하이록스=블루 버튼)
+  async function renderMemberClassesForDate(dateStr) {
+    document.getElementById("member-selected-date-label").innerText = dateStr;
+    const box = document.getElementById("member-class-list"); box.innerHTML="";
+    const dayC = monthClassesCache.filter(c=>c.date===dateStr).sort((a,b)=>a.time.localeCompare(b.time));
+    if(!dayC.length) return box.innerHTML="<p style='text-align:center; padding:14px; font-size:13px; color:#64748b;'>개설된 수업이 없습니다.</p>";
+
+    const myB = new Set((await db.collection(COL_BOOKINGS).where("memberId","==",currentUser.id).where("classDate","==",dateStr).where("status","==","booked").get()).docs.map(d=>d.data().classId));
+    
+    dayC.forEach(c => {
+      const isPast = ((new Date(`${c.date}T${c.time}:00`)-new Date())/3600000) < (c.cutoffHours||1);
+      const isFull = (c.bookedCount||0)>=(c.maxCapacity||8), isBooked = myB.has(c.id), isCls = c.status!=="open";
+      let btn = c.category==='pilates' ? "필라테스 예약하기" : "하이록스 예약하기";
+      let dis = false;
+      let btnClass = c.category==='pilates' ? "btn-pilates" : "btn-hyrox";
+
+      if(isBooked){btn="예약완료"; dis=true;}
+      else if(c.status==="auto_closed"){btn="자동폐강"; dis=true;}
+      else if(c.status==="closed"){btn="폐강됨"; dis=true;}
+      else if(isFull){btn="정원마감"; dis=true;}
+      else if(isPast){btn="예약마감"; dis=true;}
+      
+      box.innerHTML += `
+        <div class="class-card ${c.category} ${isCls?'closed':''}">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <span class="prog-badge ${c.category==='pilates'?'prog-pilates':'prog-hyrox'}">${c.category==='pilates'?'필라테스':'하이록스'}</span>
+              <strong style="font-size:16px; margin-left:4px;">${c.time} ${c.title}</strong>
+            </div>
+            <span style="font-size:13px; font-weight:900; color:#334155;">${c.bookedCount||0}/${c.maxCapacity}명</span>
+          </div>
+          <div style="text-align:center; font-size:15px; font-weight:900; color:#0f172a; margin:12px 0; background:#f8fafc; padding:7px; border-radius:8px;">
+            👩‍🏫 담당: ${c.instructor || '미정'} 선생님
+          </div>
+          <button type="button" class="${btnClass}" ${dis?"disabled":""} onclick="bookClassByMember('${c.id}')">${btn}</button>
+        </div>`;
+    });
+  }
+
+  // 수업 예약 및 회원권 차감 시 시즌레벨/마스터레벨 자동 등급업
+  async function bookClassByMember(id) {
+    const c = monthClassesCache.find(x=>x.id===id);
+    if(currentUser.programType!=="both" && currentUser.programType!==c.category) return alert("해당 종목을 수강할 수 있는 회원권이 아닙니다.");
+    if((currentUser.remainingSessions||0)<=0) return alert("잔여 횟수가 없습니다.");
+    if(!currentUser.expiryDate || currentUser.expiryDate<formatDate(new Date()) || currentUser.expiryDate<c.date) return alert("회원권 유효기간이 만료되었습니다.");
+    if(!confirm(`[${c.time} ${c.title} - ${c.instructor} 선생님] 수업을 예약할까요?\n(1회 차감 및 시즌 경험치 +1)`)) return;
+    
+    try {
+      await db.collection(COL_BOOKINGS).add({classId:c.id, classDate:c.date, classTime:c.time, classCategory:c.category, classTitle:c.title, instructor:c.instructor, memberId:currentUser.id, memberName:currentUser.name, memberNickname:currentUser.nickname||currentUser.name, memberPhone:currentUser.phone, status:"booked", createdAt:new Date().toISOString()});
+      await db.collection(COL_CLASSES).doc(c.id).update({bookedCount:(c.bookedCount||0)+1});
+      
+      const newExp = (Number(currentUser.seasonExp)||0) + 1;
+      const newSeasonLv = calcSeasonLevel(newExp);
+      const newMasterLv = Math.max(Number(currentUser.masterLevel)||1, calcMasterLevel(currentUser.totalSessions||0));
+
+      await db.collection(COL_MEMBERS).doc(currentUser.id).update({
+        remainingSessions: currentUser.remainingSessions - 1,
+        seasonExp: newExp,
+        seasonLevel: newSeasonLv,
+        masterLevel: newMasterLv
+      });
+      alert(newSeasonLv > (currentUser.seasonLevel||1) ? `🎉 축하합니다! 시즌 Lv.${newSeasonLv}(으)로 레벨업 하셨습니다!` : "수업 예약이 완료되었습니다!");
+      await refreshMemberProfile();
+      renderCalendar("member");
+    } catch(e) { alert(e.message); }
+  }
+
+  async function loadMemberMyBookings() {
+    const box = document.getElementById("member-mybook-list"); box.innerHTML = "조회 중...";
+    const snap = await db.collection(COL_BOOKINGS).where("memberId","==",currentUser.id).get();
+    if(snap.empty) return box.innerHTML="<p style='text-align:center; padding:14px; font-size:13px; color:#64748b;'>예약 내역이 없습니다.</p>";
+    box.innerHTML="";
+    snap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>`${b.classDate} ${b.classTime}`.localeCompare(`${a.classDate} ${a.classTime}`)).forEach(b=>{
+      const canCan = b.status==="booked" && ((new Date(`${b.classDate}T${b.classTime}:00`)-new Date())/3600000)>=2;
+      box.innerHTML += `
+        <div class="class-card ${b.classCategory}">
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <strong>${b.classDate} ${b.classTime} - ${b.classTitle} (${b.instructor||''})</strong>
+            <span class="prog-badge" style="background:${b.status==='booked'?'#52796f':'#94a3b8'};">${b.status==='booked'?'예약됨':'취소됨'}</span>
+          </div>
+          ${b.status==='booked'?`<button class="btn-danger btn-sm" ${!canCan?'disabled':''} onclick="cancelBookingByMember('${b.id}','${b.classId}')">${canCan?'예약 취소 (횟수 자동복구)':'수업 2시간 전 취소불가'}</button>`:''}
+        </div>`;
+    });
+  }
+
+  async function cancelBookingByMember(bid, cid) {
+    if(!confirm("예약을 취소하시겠습니까? 잔여 횟수 1회가 자동 복구됩니다.")) return;
+    await db.collection(COL_BOOKINGS).doc(bid).update({status:"canceled_by_member"});
+    const cd = await db.collection(COL_CLASSES).doc(cid).get();
+    if(cd.exists) await db.collection(COL_CLASSES).doc(cid).update({bookedCount:Math.max(0,(cd.data().bookedCount||1)-1)});
+    const nx = Math.max(0,(Number(currentUser.seasonExp)||1)-1);
+    await db.collection(COL_MEMBERS).doc(currentUser.id).update({remainingSessions:(currentUser.remainingSessions||0)+1, seasonExp:nx, seasonLevel:calcSeasonLevel(nx)});
+    alert("취소 및 횟수 복구가 완료되었습니다.");
+    await refreshMemberProfile();
+    loadMemberMyBookings();
+  }
+
+  // ==================== 관리자 기능 ====================
+  async function enterAdminView() {
+    document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+    document.getElementById("view-admin").classList.add("active");
+    document.getElementById("admin-role-badge").innerText = currentUser.role==="master" ? `👑 ${currentUser.name||'대표'}` : `👩‍🏫 ${currentUser.name||'선생님'}`;
+    document.getElementById("floating-msg-btn").style.display="flex";
+    document.getElementById("floating-msg-label").innerText="회원 쪽지";
+    await loadAllMembersCache();
+    await loadStaffList();
+    switchAdminTab("cal");
+  }
+
+  async function loadAllMembersCache() {
+    allMembersCache = (await db.collection(COL_MEMBERS).get()).docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  }
+
+  function switchAdminTab(t) {
+    ["cal","members","history","staff","audit"].forEach(x=>{
+      document.getElementById(`atab-${x}`).classList.toggle("active", x===t);
+      document.getElementById(`aview-${x}`).style.display = (x===t) ? "block" : "none";
+    });
+    if(t==="cal") renderCalendar("admin");
+    if(t==="members") loadAllMembersCache().then(renderAdminMemberList);
+    if(t==="history") loadAdminBookingHistory();
+    if(t==="staff") loadStaffList();
+    if(t==="audit") loadAdminAuditLogs();
+  }
+
+  // 선생님 등록 / 조회 / 삭제 (버그 완벽 수정)
+  async function registerStaff() {
+    const name = document.getElementById("staff-name").value.trim();
+    const role = document.getElementById("staff-role").value;
+    const phone = document.getElementById("staff-phone").value.replace(/[^0-9]/g, "");
+    if (!name || !phone) return alert("선생님 성함과 전화번호를 모두 입력해주세요.");
+    try {
+      const existing = await db.collection(COL_ADMINS).where("phone", "==", phone).get();
+      if (!existing.empty) return alert("이미 등록된 전화번호입니다.");
+      await db.collection(COL_ADMINS).add({ name, role, phone, createdAt: new Date().toISOString() });
+      await addAuditLog("선생님 등록", `${name} (${phone}) - ${role}`);
+      document.getElementById("staff-name").value = "";
+      document.getElementById("staff-phone").value = "";
+      alert(`${name} 선생님이 등록되었습니다!`);
+      await loadStaffList();
+    } catch (e) {
+      alert("등록 중 오류: " + e.message);
+    }
+  }
+
+  async function loadStaffList() {
+    const box = document.getElementById("staff-list-box");
+    const datalist = document.getElementById("staff-datalist");
+    if (!box) return;
+    const snap = await db.collection(COL_ADMINS).get();
+    staffListCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (datalist) {
+      datalist.innerHTML = staffListCache.map(s => `<option value="${s.name}">`).join("");
+    }
+    if (!staffListCache.length) {
+      box.innerHTML = "<p style='font-size:12px; color:#64748b;'>등록된 선생님이 없습니다.</p>";
+      return;
+    }
+    box.innerHTML = staffListCache.map(s => `
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#f8faf9; padding:8px 12px; border-radius:10px; border:1px solid var(--border);">
+        <div>
+          <strong style="font-size:13px;">${s.role === 'master' ? '👑' : '👩‍🏫'} ${s.name}</strong>
+          <span style="font-size:11px; color:#64748b; margin-left:6px;">${s.phone}</span>
+        </div>
+        <button type="button" class="btn-danger btn-sm" onclick="deleteStaff('${s.id}', '${s.name}')">삭제</button>
+      </div>
+    `).join("");
+  }
+
+  async function deleteStaff(id, name) {
+    if (!confirm(`${name} 선생님을 목록에서 삭제하시겠습니까?`)) return;
+    await db.collection(COL_ADMINS).doc(id).delete();
+    await addAuditLog("선생님 삭제", `${name} 삭제됨`);
+    await loadStaffList();
+  }
+
+  // 예약 로그 조회 (버그 완벽 수정)
+  async function loadAdminBookingHistory() {
+    const box = document.getElementById("admin-booking-history-list");
+    if (!box) return;
+    box.innerHTML = "<p style='font-size:12px; color:#64748b;'>예약 로그를 불러오는 중...</p>";
+    try {
+      const snap = await db.collection(COL_BOOKINGS).get();
+      if (snap.empty) {
+        box.innerHTML = "<p style='font-size:12px; color:#64748b; text-align:center; padding:20px;'>아직 예약 기록이 없습니다.</p>";
+        return;
+      }
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+        .slice(0, 60);
+
+      box.innerHTML = list.map(b => {
+        const statusLabel = b.status === "booked" ? "예약완료" : b.status === "canceled_by_member" ? "회원취소" : "관리자취소";
+        const statusColor = b.status === "booked" ? "#0d9488" : "#ef4444";
+        return `
+          <div class="class-card ${b.classCategory || 'pilates'}" style="padding:10px 12px; margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="font-size:13px;">${b.memberName} 회원</strong>
+              <span style="font-size:11px; font-weight:800; color:${statusColor};">${statusLabel}</span>
+            </div>
+            <div style="font-size:12px; color:#334155; margin-top:4px;">
+              📅 ${b.classDate} ${b.classTime} | ${b.classTitle} (${b.instructor || '미정'})
+            </div>
+            <div style="font-size:10px; color:#94a3b8; margin-top:2px;">기록시각: ${(b.createdAt || "").replace("T", " ").slice(0, 16)}</div>
+          </div>`;
+      }).join("");
+    } catch (e) {
+      box.innerHTML = `<p style="font-size:12px; color:#ef4444;">불러오기 오류: ${e.message}</p>`;
+    }
+  }
+
+  // 감사 로그 조회 (복구 완료)
+  async function loadAdminAuditLogs() {
+    const box = document.getElementById("admin-audit-list");
+    if (!box) return;
+    box.innerHTML = "<p style='font-size:12px; color:#64748b;'>감사 로그를 불러오는 중...</p>";
+    try {
+      const snap = await db.collection(COL_AUDIT).get();
+      if (snap.empty) {
+        box.innerHTML = "<p style='font-size:12px; color:#64748b; text-align:center; padding:20px;'>기록된 감사 로그가 없습니다.</p>";
+        return;
+      }
+      const list = snap.docs.map(d => d.data())
+        .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+        .slice(0, 50);
+
+      box.innerHTML = list.map(a => `
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px; margin-bottom:6px; font-size:12px;">
+          <div style="display:flex; justify-content:space-between; font-weight:800; color:var(--primary);">
+            <span>[${a.action}] ${a.actor || '관리자'}</span>
+            <span style="font-size:10px; color:#94a3b8;">${(a.createdAt || "").replace("T", " ").slice(0, 16)}</span>
+          </div>
+          <div style="color:#475569; margin-top:4px;">${a.detail || ''}</div>
+        </div>
+      `).join("");
+    } catch (e) {
+      box.innerHTML = `<p style="font-size:12px; color:#ef4444;">오류: ${e.message}</p>`;
+    }
+  }
+
+  // 시즌 명칭 저장 및 시즌 정산 (시즌 레벨 40% 마스터 반영)
+  async function saveSeasonSettings() {
+    const s = document.getElementById("season-title-select").value;
+    await db.collection(COL_SETTINGS).doc("main").set({ currentSeason: s }, { merge: true });
+    appSettings.currentSeason = s;
+    applyLogoAndSeasonUI();
+    await addAuditLog("시즌 변경", `현재 시즌: ${s}`);
+    alert(`시즌이 [${s}]로 변경되었습니다!`);
+  }
+
+  async function settleSeasonToMaster() {
+    if(!confirm("시즌 종료 정산을 진행하시겠습니까?\n\n• 달성한 시즌 레벨의 40%(예: 시즌Lv.10 → 누적 +40회 효과)가 마스터 레벨에 반영됩니다.\n• 이후 전체 회원의 이번 시즌 출석 횟수와 시즌 레벨이 새 시즌을 위해 초기화됩니다.")) return;
+    const snap = await db.collection(COL_MEMBERS).get();
+    const batch = db.batch();
+    snap.docs.forEach(doc => {
+      const d = doc.data();
+      const sLv = calcSeasonLevel(d.seasonExp || 0);
+      const bonusSessions = Math.round(sLv * 4); // 시즌레벨 10 기준 40% (4레벨 분량 = 40회)
+      const newTot = (Number(d.totalSessions) || 0) + bonusSessions;
+      const newMasterLv = Math.max(Number(d.masterLevel) || 1, calcMasterLevel(newTot));
+      batch.update(doc.ref, { masterLevel: newMasterLv, seasonLevel: 1, seasonExp: 0 });
+    });
+    await batch.commit();
+    await addAuditLog("시즌 종료 정산", "전체 회원 시즌레벨 40% 마스터 반영 및 초기화");
+    alert("시즌 정산 및 새 시즌 초기화가 완료되었습니다!");
+    await loadAllMembersCache();
+  }
+
+  // 다중 날짜 수업 개설
+  function openMultiDateClassModal() {
+    if(!document.getElementById("cls-title").value) return alert("수업명을 적어주세요.");
+    if(!document.getElementById("cls-instructor").value) return alert("담당 선생님 성함을 적어주세요.");
+    multiSelectedDates.clear(); multiSelectedDates.add(selectedDateStr); drawMulti(); openModal("modal-multidate");
+  }
+  function drawMulti() {
+    const g=document.getElementById("multi-cal-grid"); g.innerHTML=""; const pre=`${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+    for(let i=0;i<(new Date(calYear,calMonth,1).getDay()+6)%7;i++) g.appendChild(Object.assign(document.createElement("div"),{className:"cal-cell empty"}));
+    for(let d=1;d<=new Date(calYear,calMonth+1,0).getDate();d++){ const ds=`${pre}-${String(d).padStart(2,'0')}`; const c=document.createElement("div"); c.className=`cal-cell ${multiSelectedDates.has(ds)?"multi-selected":""}`; c.innerText=d; c.onclick=()=>{multiSelectedDates.has(ds)?multiSelectedDates.delete(ds):multiSelectedDates.add(ds); c.classList.toggle("multi-selected");}; g.appendChild(c); }
+  }
+  function quickSelectWeekdays(days) { const pre=`${calYear}-${String(calMonth+1).padStart(2,'0')}`; for(let d=1;d<=new Date(calYear,calMonth+1,0).getDate();d++) { if(days.includes(new Date(calYear,calMonth,d).getDay())) multiSelectedDates.add(`${pre}-${String(d).padStart(2,'0')}`); } drawMulti(); }
+  function clearMultiDates() { multiSelectedDates.clear(); drawMulti(); }
+  async function confirmCreateMultiClasses() {
+    if(!multiSelectedDates.size) return alert("날짜를 1개 이상 선택하세요.");
+    const cat=document.getElementById("cls-category").value, tit=document.getElementById("cls-title").value, ins=document.getElementById("cls-instructor").value, t=document.getElementById("cls-time").value, mx=Number(document.getElementById("cls-max").value), cut=Number(document.getElementById("cls-cutoff").value);
+    const batch = db.batch();
+    multiSelectedDates.forEach(d=>{
+      const r=db.collection(COL_CLASSES).doc();
+      batch.set(r, {date:d, time:t, category:cat, title:tit, instructor:ins, maxCapacity:mx, bookedCount:0, cutoffHours:cut, status:"open", createdAt:new Date().toISOString()});
+    });
+    await batch.commit();
+    await addAuditLog("수업 개설", `${tit} (${ins}) - ${multiSelectedDates.size}개 날짜 개설`);
+    closeModal("modal-multidate");
+    alert("선택한 날짜에 수업이 일괄 개설되었습니다!");
+    renderCalendar("admin");
+  }
+
+  async function renderAdminClassesForDate(ds) {
+    document.getElementById("admin-selected-date-label").innerText = ds;
+    const box = document.getElementById("admin-class-list"); box.innerHTML="";
+    const dc = monthClassesCache.filter(c=>c.date===ds).sort((a,b)=>a.time.localeCompare(b.time));
+    if(!dc.length) return box.innerHTML="<p style='font-size:12px; color:#64748b;'>개설된 수업이 없습니다.</p>";
+    const books = {};
+    (await db.collection(COL_BOOKINGS).where("classDate","==",ds).where("status","==","booked").get()).docs.forEach(d=>{
+      const b={id:d.id,...d.data()}; (books[b.classId]=books[b.classId]||[]).push(b);
+    });
+    
+    dc.forEach(c=>{
+      const bl = books[c.id]||[];
+      box.innerHTML += `
+        <div class="class-card ${c.category} ${c.status!=='open'?'closed':''}">
+          <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="document.getElementById('acc-${c.id}').classList.toggle('open')">
+            <div>
+              <span class="prog-badge ${c.category==='pilates'?'prog-pilates':'prog-hyrox'}">${c.category==='pilates'?'필라':'하이'}</span>
+              <strong style="margin-left:4px;">${c.time} ${c.title}</strong>
+            </div>
+            <div style="font-size:12px; font-weight:800; color:${c.status==='open'?'#0d9488':'#dc2626'}">${c.status==='open'?`${bl.length}/${c.maxCapacity}명`:'폐강'} ▼</div>
+          </div>
+          <div style="text-align:center; font-size:14px; font-weight:900; color:#0f172a; margin-top:8px;">담당: ${c.instructor || '미정'} 선생님</div>
+          <div class="accordion-body" id="acc-${c.id}">
+            ${bl.length ? bl.map(b=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;background:#f8fafc;padding:6px 8px;margin-bottom:4px;border-radius:6px;"><span>👤 ${b.memberName}</span><button class="btn-danger btn-sm" onclick="adminCancelBooking('${b.id}','${c.id}','${b.memberId}')">직권취소</button></div>`).join("") : "<p style='font-size:11px; color:#64748b; margin-bottom:6px;'>예약자가 없습니다.</p>"}
+            <div style="display:flex; gap:6px; margin-top:8px;">
+              <select id="prx-${c.id}" style="flex:1; font-size:12px; margin-bottom:0;"><option value="">- 대리예약 회원선택 -</option>${allMembersCache.map(m=>`<option value="${m.id}">${m.name} (잔여 ${m.remainingSessions||0}회)</option>`).join("")}</select>
+              <button class="btn-indigo btn-sm" onclick="adminProxyBook('${c.id}')">대리예약</button>
+            </div>
+            <div style="display:flex; gap:6px; margin-top:8px;">
+              <button class="btn-sub btn-sm" style="flex:1;" onclick="db.collection('${COL_CLASSES}').doc('${c.id}').update({status:'${c.status==='open'?'closed':'open'}'}).then(()=>renderCalendar('admin'))">${c.status==='open'?'폐강처리':'다시열기'}</button>
+              <button class="btn-danger btn-sm" style="flex:1;" onclick="if(confirm('이 수업을 삭제하시겠습니까?')) db.collection('${COL_CLASSES}').doc('${c.id}').delete().then(()=>renderCalendar('admin'))">수업삭제</button>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+
+  async function adminProxyBook(cid) {
+    const mid = document.getElementById(`prx-${cid}`).value; if(!mid) return;
+    const m = allMembersCache.find(x=>x.id===mid), c = monthClassesCache.find(x=>x.id===cid);
+    if((m.remainingSessions||0)<=0) return alert("해당 회원의 잔여 횟수가 없습니다.");
+    await db.collection(COL_BOOKINGS).add({classId:c.id, classDate:c.date, classTime:c.time, classCategory:c.category, classTitle:c.title, instructor:c.instructor, memberId:m.id, memberName:m.name, status:"booked", createdAt:new Date().toISOString()});
+    await db.collection(COL_CLASSES).doc(c.id).update({bookedCount:(c.bookedCount||0)+1});
+    const nx = (Number(m.seasonExp)||0)+1;
+    await db.collection(COL_MEMBERS).doc(m.id).update({remainingSessions:m.remainingSessions-1, seasonExp:nx, seasonLevel:calcSeasonLevel(nx)});
+    await addAuditLog("대리 예약", `${m.name} 회원 -> ${c.date} ${c.title}`);
+    alert("대리예약 완료"); await loadAllMembersCache(); renderCalendar("admin");
+  }
+
+  async function adminCancelBooking(bid, cid, mid) {
+    if(!confirm("직권 취소 시 회원 잔여 횟수 1회가 복구됩니다. 진행할까요?")) return;
+    await db.collection(COL_BOOKINGS).doc(bid).update({status:"canceled_by_admin"});
+    const c=await db.collection(COL_CLASSES).doc(cid).get(), m=await db.collection(COL_MEMBERS).doc(mid).get();
+    if(c.exists) await db.collection(COL_CLASSES).doc(cid).update({bookedCount:Math.max(0,(c.data().bookedCount||1)-1)});
+    if(m.exists) {
+      const nx=Math.max(0,(Number(m.data().seasonExp)||1)-1);
+      await db.collection(COL_MEMBERS).doc(mid).update({remainingSessions:(m.data().remainingSessions||0)+1, seasonExp:nx, seasonLevel:calcSeasonLevel(nx)});
+    }
+    await addAuditLog("직권 취소", `예약ID ${bid} 취소 및 횟수 복구`);
+    alert("취소 완료"); await loadAllMembersCache(); renderCalendar("admin");
+  }
+
+  // 관리자 회원 목록 렌더링
+  function renderAdminMemberList() {
+    const q = (document.getElementById("admin-member-search").value || "").toLowerCase();
+    const box = document.getElementById("admin-member-list"); box.innerHTML="";
+    const filtered = allMembersCache.filter(m => (m.name||"").toLowerCase().includes(q) || (m.phone||"").includes(q));
+    if(!filtered.length) return box.innerHTML="<p style='font-size:12px; color:#64748b; text-align:center; padding:16px;'>회원이 없습니다.</p>";
+
+    filtered.forEach(m=>{
+      const mGender = m.gender || "여";
+      const masterLv = Math.max(Number(m.masterLevel)||1, calcMasterLevel(m.totalSessions||0));
+      const seasonLv = calcSeasonLevel(m.seasonExp||0);
+      const mSvg = getPixelCharacter("master", mGender, masterLv, true);
+      const pSvg = getPixelCharacter("pet", mGender, seasonLv, true);
+      const inactive = isLongTermInactive(m);
+      
+      box.innerHTML += `
+        <div class="class-card" style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:72px; height:52px; background:#fefce8; border:1.5px solid #ca8a04; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:2px; padding:2px; overflow:hidden;">
+              <div style="width:34px; height:46px;">${mSvg}</div>
+              <div style="width:32px; height:42px;">${pSvg}</div>
+            </div>
+            <div>
+              <strong style="font-size:14px;">${m.name}</strong> <span style="font-size:11px; color:#64748b;">(${m.phone})</span>
+              <div style="font-size:12px; font-weight:800; color:var(--primary); margin-top:2px;">
+                마스터Lv.${masterLv} · 시즌Lv.${seasonLv} | 잔여 ${m.remainingSessions||0}/${m.totalSessions||0}회
+              </div>
+              <div style="font-size:11px; color:${inactive?'#dc2626':'#64748b'};">
+                만료: ${m.expiryDate||'미설정'} ${inactive?'(2개월 미등록 혜택정지)':''}
+              </div>
+            </div>
+          </div>
+          <button class="btn-indigo btn-sm" onclick="openEditMemberModal('${m.id}')">수정</button>
+        </div>`;
+    });
+  }
+
+  function openAdminAddMemberModal() {
+    document.getElementById("member-modal-title").innerText = "신규 회원 등록";
+    document.getElementById("edit-m-id").value="";
+    document.getElementById("edit-m-name").value="";
+    document.getElementById("edit-m-nick").value="";
+    document.getElementById("edit-m-phone").value="";
+    document.getElementById("edit-m-tot").value=10;
+    document.getElementById("edit-m-rem").value=10;
+    document.getElementById("edit-m-expiry").value=addDaysToDateStr("",40);
+    document.getElementById("edit-m-master-lv").value=2;
+    document.getElementById("edit-m-season-exp").value=0;
+    document.getElementById("edit-m-season-lv").value=1;
+    document.getElementById("btn-delete-member").style.display="none";
+    openModal("modal-member-edit");
+  }
+
+  function openEditMemberModal(id) {
+    const m = allMembersCache.find(x=>x.id===id); if(!m) return;
+    document.getElementById("member-modal-title").innerText = `${m.name} 회원 수정`;
+    document.getElementById("edit-m-id").value=m.id;
+    document.getElementById("edit-m-name").value=m.name;
+    document.getElementById("edit-m-nick").value=m.nickname||m.name;
+    document.getElementById("edit-m-gender").value=m.gender||"여";
+    document.getElementById("edit-m-prog").value=m.programType||"both";
+    document.getElementById("edit-m-phone").value=m.phone;
+    document.getElementById("edit-m-tot").value=m.totalSessions||0;
+    document.getElementById("edit-m-rem").value=m.remainingSessions||0;
+    document.getElementById("edit-m-expiry").value=m.expiryDate||addDaysToDateStr("",40);
+    document.getElementById("edit-m-master-lv").value=Math.max(Number(m.masterLevel)||1, calcMasterLevel(m.totalSessions||0));
+    document.getElementById("edit-m-season-exp").value=m.seasonExp||0;
+    document.getElementById("edit-m-season-lv").value=calcSeasonLevel(m.seasonExp||0);
+    document.getElementById("btn-delete-member").style.display="block";
+    openModal("modal-member-edit");
+  }
+
+  // 티켓 추가/차감 시 시즌레벨 및 마스터레벨 자동 연동
+  function quickAddTicket(c, d) {
+    const t = document.getElementById("edit-m-tot");
+    const r = document.getElementById("edit-m-rem");
+    const sExp = document.getElementById("edit-m-season-exp");
+    if (c > 1) {
+      t.value = Number(t.value) + c;
+      syncMasterLvFromTot();
+    } else if (c === -1) {
+      // 1회 차감 시 시즌 출석 경험치 +1 자동 반영
+      sExp.value = Number(sExp.value) + 1;
+      syncSeasonLvFromExp();
+    }
+    r.value = Math.max(0, Number(r.value) + c);
+    if (d > 0) {
+      // 10회 이상 재결제 시 만료일이 과거라면 오늘 기준으로 연장하여 혜택 즉시 부활
+      const curExp = document.getElementById("edit-m-expiry").value;
+      const baseDate = (!curExp || curExp < formatDate(new Date())) ? "" : curExp;
+      document.getElementById("edit-m-expiry").value = addDaysToDateStr(baseDate, d);
+    }
+  }
+  function addExpiryDays(d) { const e=document.getElementById("edit-m-expiry"); e.value=addDaysToDateStr(e.value||"", d); }
+  function syncSeasonLvFromExp() { document.getElementById("edit-m-season-lv").value = calcSeasonLevel(Number(document.getElementById("edit-m-season-exp").value)||0); }
+  function syncMasterLvFromTot() { document.getElementById("edit-m-master-lv").value = calcMasterLevel(Number(document.getElementById("edit-m-tot").value)||0); }
+
+  async function saveMemberModal() {
+    const id=document.getElementById("edit-m-id").value, name=document.getElementById("edit-m-name").value.trim(), phone=document.getElementById("edit-m-phone").value.replace(/[^0-9]/g,"");
+    if(!name||!phone) return alert("이름과 전화번호를 입력하세요.");
+    const p = {
+      name,
+      nickname: document.getElementById("edit-m-nick").value.trim() || name,
+      gender: document.getElementById("edit-m-gender").value,
+      programType: document.getElementById("edit-m-prog").value,
+      phone,
+      totalSessions: Number(document.getElementById("edit-m-tot").value)||0,
+      remainingSessions: Number(document.getElementById("edit-m-rem").value)||0,
+      expiryDate: document.getElementById("edit-m-expiry").value,
+      masterLevel: Number(document.getElementById("edit-m-master-lv").value)||1,
+      seasonExp: Number(document.getElementById("edit-m-season-exp").value)||0,
+      seasonLevel: Number(document.getElementById("edit-m-season-lv").value)||1
+    };
+    if(!id) {
+      await db.collection(COL_MEMBERS).add({...p, createdAt:new Date().toISOString()});
+      await addAuditLog("회원 등록", `${name} (${phone}) 총 ${p.totalSessions}회`);
+      alert("신규 회원이 등록되었습니다.");
+    } else {
+      await db.collection(COL_MEMBERS).doc(id).update(p);
+      await addAuditLog("회원 수정", `${name} - 잔여:${p.remainingSessions}회, 마스터Lv.${p.masterLevel}`);
+      alert("회원 정보가 수정되었습니다.");
+    }
+    closeModal("modal-member-edit");
+    await loadAllMembersCache();
+    renderAdminMemberList();
+  }
+
+  async function deleteMemberModal() {
+    const id = document.getElementById("edit-m-id").value;
+    const name = document.getElementById("edit-m-name").value;
+    if(confirm(`정말 [${name}] 회원을 삭제하시겠습니까?`)) {
+      await db.collection(COL_MEMBERS).doc(id).delete();
+      await addAuditLog("회원 삭제", `${name} 회원 삭제`);
+      closeModal("modal-member-edit");
+      await loadAllMembersCache();
+      renderAdminMemberList();
+    }
+  }
+
+  // ==================== 쪽지함 (1:1 및 단체 공지 완벽 작동) ====================
+  async function openMessengerModal() {
+    openModal("modal-messenger");
+    if (currentUser.role === "member") {
+      document.getElementById("admin-msg-controls").style.display = "none";
+      document.getElementById("msg-modal-title").innerText = "✉️ 선생님께 1:1 쪽지";
+    } else {
+      document.getElementById("admin-msg-controls").style.display = "block";
+      document.getElementById("msg-modal-title").innerText = "✉️ 회원 1:1 & 공지 쪽지함";
+      await loadAllMembersCache();
+      const sel = document.getElementById("admin-chat-member-select");
+      sel.innerHTML = allMembersCache.map(m => `<option value="${m.id}">${m.name} (${m.phone})</option>`).join("");
+    }
+    loadChatRoomMessages();
+  }
+
+  async function loadChatRoomMessages() {
+    const box = document.getElementById("kakao-chat-box");
+    box.innerHTML = "<p style='text-align:center; font-size:12px; color:#475569; margin-top:20px;'>대화 불러오는 중...</p>";
+    const targetMemberId = (currentUser.role === "member") ? currentUser.id : document.getElementById("admin-chat-member-select").value;
+    if (!targetMemberId) {
+      box.innerHTML = "<p style='text-align:center; font-size:12px; color:#475569; margin-top:20px;'>대화할 회원을 선택하세요.</p>";
+      return;
+    }
+    try {
+      const snap = await db.collection(COL_MESSAGES).where("roomId", "==", targetMemberId).get();
+      const msgs = snap.docs.map(d => d.data()).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+      if (!msgs.length) {
+        box.innerHTML = "<p style='text-align:center; font-size:12px; color:#475569; margin-top:20px;'>주고받은 쪽지가 없습니다. 첫 메시지를 보내보세요!</p>";
+        return;
+      }
+      box.innerHTML = msgs.map(m => {
+        const isMine = (currentUser.role === "member" && m.senderRole === "member") || (currentUser.role !== "member" && m.senderRole !== "member");
+        return `
+          <div class="msg-row ${isMine ? 'mine' : 'theirs'}">
+            ${!isMine ? `<div class="msg-sender">${m.senderName}</div>` : ''}
+            <div class="msg-bubble">${m.text}</div>
+            <div class="msg-time">${(m.createdAt || "").replace("T", " ").slice(5, 16)}</div>
+          </div>`;
+      }).join("");
+      box.scrollTop = box.scrollHeight;
+    } catch (e) {
+      box.innerHTML = `<p style="font-size:12px; color:#ef4444;">오류: ${e.message}</p>`;
+    }
+  }
+
+  async function sendChatMessage() {
+    const input = document.getElementById("chat-input-text");
+    const text = input.value.trim();
+    if (!text) return;
+    const targetMemberId = (currentUser.role === "member") ? currentUser.id : document.getElementById("admin-chat-member-select").value;
+    if (!targetMemberId) return alert("대화할 회원을 선택해주세요.");
+
+    await db.collection(COL_MESSAGES).add({
+      roomId: targetMemberId,
+      senderRole: currentUser.role,
+      senderName: currentUser.name || (currentUser.role === "member" ? "회원" : "선생님"),
+      text,
+      createdAt: new Date().toISOString()
+    });
+    input.value = "";
+    loadChatRoomMessages();
+  }
+
+  async function sendBroadcastMessage() {
+    const target = document.getElementById("broadcast-target").value;
+    const text = document.getElementById("broadcast-text").value.trim();
+    if (!text) return alert("공지 내용을 입력해주세요.");
+    const targets = allMembersCache.filter(m => target === "all" || m.programType === "both" || m.programType === target);
+    if (!targets.length) return alert("발송 대상 회원이 없습니다.");
+    if (!confirm(`총 ${targets.length}명의 회원에게 단체 공지 쪽지를 발송할까요?`)) return;
+
+    const batch = db.batch();
+    targets.forEach(m => {
+      const ref = db.collection(COL_MESSAGES).doc();
+      batch.set(ref, {
+        roomId: m.id,
+        senderRole: "master",
+        senderName: `📢 [공지] ${currentUser.name || '오름 GX'}`,
+        text,
+        createdAt: new Date().toISOString()
+      });
+    });
+    await batch.commit();
+    document.getElementById("broadcast-text").value = "";
+    alert(`${targets.length}명에게 단체 쪽지 발송이 완료되었습니다!`);
+    loadChatRoomMessages();
+  }
+
+  // 로고 크롭 및 저장
+  let croppedLogo = null;
+  function loadLogoFile(e) {
+    const f=e.target.files[0]; if(!f) return;
+    const img=new Image(), cvs=document.getElementById("logo-canvas"), ctx=cvs.getContext("2d");
+    img.onload=()=>{ ctx.clearRect(0,0,220,220); let s=Math.min(img.width,img.height), ox=(img.width-s)/2, oy=(img.height-s)/2; ctx.drawImage(img, ox, oy, s, s, 0, 0, 220, 220); croppedLogo=cvs.toDataURL("image/jpeg", 0.9); };
+    img.src=URL.createObjectURL(f);
+  }
+  async function saveCroppedLogo() {
+    if(!croppedLogo) return alert("먼저 이미지 파일을 선택해주세요.");
+    await db.collection(COL_SETTINGS).doc("main").set({logoBase64:croppedLogo}, {merge:true});
+    alert("로고가 적용되었습니다!");
+    location.reload();
+  }
+
+  function openModal(id) { document.getElementById(id).classList.add("open"); if(id==='modal-level-guide') renderLevelGuideModal(); }
+  function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+</script>
+</body>
+</html>
