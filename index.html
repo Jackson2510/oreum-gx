@@ -909,11 +909,26 @@
   }
 
   async function changeAdminPassword() {
-    const newPw = prompt(`현재 로그인 번호: ${currentUser.phone}\n변경할 새 로그인 번호(비밀번호)를 입력하세요:`);
+    const oldPw = prompt("현재 사용 중인 비밀번호(로그인 번호)를 입력하세요:");
+    if (!oldPw) return;
+    if (oldPw.trim() !== String(currentUser.phone)) {
+      return alert("현재 비밀번호가 일치하지 않습니다.");
+    }
+
+    const newPw = prompt("새로 변경할 비밀번호(로그인 번호)를 입력하세요:");
     if (!newPw) return;
     const cleanPw = newPw.trim();
-    if (!cleanPw) return alert("변경할 번호를 정확히 입력해주세요.");
-    if (cleanPw === currentUser.phone) return alert("현재 사용 중인 번호와 같습니다.");
+    if (!cleanPw) return alert("변경할 비밀번호를 정확히 입력해주세요.");
+    if (cleanPw === String(currentUser.phone)) {
+      return alert("현재 사용 중인 비밀번호와 같습니다.");
+    }
+
+    const confirmPw = prompt("변경할 비밀번호를 한 번 더 입력하세요 (확인):");
+    if (!confirmPw) return;
+    if (confirmPw.trim() !== cleanPw) {
+      return alert("새 비밀번호가 서로 일치하지 않습니다. 다시 시도해주세요.");
+    }
+
     try {
       const dup = await db.collection(COL_ADMINS).where("phone", "==", cleanPw).get();
       if (!dup.empty) return alert("이미 다른 관리자/선생님이 사용 중인 번호입니다.");
@@ -921,7 +936,7 @@
       currentUser.phone = cleanPw;
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ type: "admin", phone: cleanPw }));
       await addAuditLog("비밀번호 변경", `${currentUser.name} 로그인 번호 변경`);
-      alert(`로그인 번호가 [${cleanPw}](으)로 변경되었습니다!\n다음 로그인부터 새 번호를 사용해주세요.`);
+      alert(`비밀번호가 [${cleanPw}](으)로 변경되었습니다!\n다음 로그인부터 새 번호를 사용해주세요.`);
     } catch (e) {
       alert("변경 중 오류: " + e.message);
     }
