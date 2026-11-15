@@ -1263,7 +1263,7 @@
     document.getElementById("edit-m-master-lv").value=Math.max(Number(m.masterLevel)||1, calcMasterLevel(m.totalSessions||0));
     document.getElementById("edit-m-season-exp").value=m.seasonExp||0;
     document.getElementById("edit-m-season-lv").value=calcSeasonLevel(m.seasonExp||0);
-    document.getElementById("btn-delete-member").style.display="block";
+   document.getElementById("btn-delete-member").style.display = (currentUser.role === "master") ? "block" : "none";
     openModal("modal-member-edit");
   }
 
