@@ -472,8 +472,13 @@
           <button type="button" class="btn-sm" onclick="sendBroadcastMessage()">발송</button>
         </div>
       </div>
-      <label>1:1 대화할 회원 선택</label>
-      <select id="admin-chat-member-select" onchange="loadChatRoomMessages()"></select>
+      <label>1:1 대화할 회원 검색</label>
+      <input type="hidden" id="admin-chat-selected-id">
+      <div style="position:relative; margin-bottom:6px;">
+        <input type="text" id="admin-chat-member-search" placeholder="회원 이름 또는 전화번호 입력..." style="margin-bottom:4px;" oninput="filterAdminChatMembers()" onfocus="filterAdminChatMembers()">
+        <div id="admin-chat-search-results" style="display:none; max-height:130px; overflow-y:auto; background:#fff; border:1.5px solid var(--primary); border-radius:10px; padding:4px; box-shadow:0 4px 12px rgba(0,0,0,0.12);"></div>
+      </div>
+      <div id="admin-chat-selected-badge" style="font-size:12px; font-weight:800; color:var(--primary); background:#f1f5f3; padding:6px 10px; border-radius:8px; margin-bottom:4px;">대화 상대를 검색해서 선택하세요.</div>
     </div>
     <div class="kakao-room" id="kakao-chat-box"></div>
     <div style="display:flex; gap:6px;">
@@ -1227,7 +1232,10 @@
               </div>
             </div>
           </div>
-          <button class="btn-indigo btn-sm" onclick="openEditMemberModal('${m.id}')">수정</button>
+          <div style="display:flex; gap:5px; flex-shrink:0;">
+            <button type="button" class="btn-green btn-sm" onclick="openMessengerModal('${m.id}')">쪽지</button>
+            <button type="button" class="btn-indigo btn-sm" onclick="openEditMemberModal('${m.id}')">수정</button>
+          </div>
         </div>`;
     });
   }
@@ -1334,28 +1342,73 @@
     }
   }
 
-  // ==================== 쪽지함 (1:1 및 단체 공지 완벽 작동) ====================
-  async function openMessengerModal() {
+ // ==================== 쪽지함 (1:1 이름검색 & 단체 공지 완벽 작동) ====================
+  async function openMessengerModal(preselectMemberId = null) {
     openModal("modal-messenger");
     if (currentUser.role === "member") {
       document.getElementById("admin-msg-controls").style.display = "none";
       document.getElementById("msg-modal-title").innerText = "✉️ 선생님께 1:1 쪽지";
+      loadChatRoomMessages();
     } else {
       document.getElementById("admin-msg-controls").style.display = "block";
       document.getElementById("msg-modal-title").innerText = "✉️ 회원 1:1 & 공지 쪽지함";
       await loadAllMembersCache();
-      const sel = document.getElementById("admin-chat-member-select");
-      sel.innerHTML = allMembersCache.map(m => `<option value="${m.id}">${m.name} (${m.phone})</option>`).join("");
+      document.getElementById("admin-chat-member-search").value = "";
+      document.getElementById("admin-chat-search-results").style.display = "none";
+      if (preselectMemberId) {
+        selectAdminChatMember(preselectMemberId);
+      } else {
+        const curId = document.getElementById("admin-chat-selected-id").value;
+        if (curId && allMembersCache.some(m => m.id === curId)) {
+          selectAdminChatMember(curId);
+        } else {
+          document.getElementById("admin-chat-selected-id").value = "";
+          document.getElementById("admin-chat-selected-badge").innerText = "대화 상대를 검색해서 선택하세요.";
+          loadChatRoomMessages();
+        }
+      }
     }
+  }
+
+  function filterAdminChatMembers() {
+    const q = (document.getElementById("admin-chat-member-search").value || "").trim().toLowerCase();
+    const resBox = document.getElementById("admin-chat-search-results");
+    if (!q) {
+      resBox.style.display = "none";
+      return;
+    }
+    const matches = allMembersCache.filter(m =>
+      (m.name || "").toLowerCase().includes(q) || (m.phone || "").includes(q)
+    );
+    if (!matches.length) {
+      resBox.innerHTML = "<div style='padding:8px; font-size:12px; color:#64748b;'>일치하는 회원이 없습니다.</div>";
+    } else {
+      resBox.innerHTML = matches.map(m => `
+        <div onclick="selectAdminChatMember('${m.id}')" style="padding:8px 10px; font-size:13px; font-weight:700; cursor:pointer; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+          <span>${m.name}</span>
+          <span style="font-size:11px; color:#64748b;">${m.phone}</span>
+        </div>
+      `).join("");
+    }
+    resBox.style.display = "block";
+  }
+
+  function selectAdminChatMember(memberId) {
+    const m = allMembersCache.find(x => x.id === memberId);
+    if (!m) return;
+    document.getElementById("admin-chat-selected-id").value = m.id;
+    document.getElementById("admin-chat-member-search").value = "";
+    document.getElementById("admin-chat-search-results").style.display = "none";
+    document.getElementById("admin-chat-selected-badge").innerText = `💬 현재 대화 상대: ${m.name} (${m.phone})`;
     loadChatRoomMessages();
   }
 
   async function loadChatRoomMessages() {
     const box = document.getElementById("kakao-chat-box");
     box.innerHTML = "<p style='text-align:center; font-size:12px; color:#475569; margin-top:20px;'>대화 불러오는 중...</p>";
-    const targetMemberId = (currentUser.role === "member") ? currentUser.id : document.getElementById("admin-chat-member-select").value;
+    const targetMemberId = (currentUser.role === "member") ? currentUser.id : document.getElementById("admin-chat-selected-id").value;
     if (!targetMemberId) {
-      box.innerHTML = "<p style='text-align:center; font-size:12px; color:#475569; margin-top:20px;'>대화할 회원을 선택하세요.</p>";
+      box.innerHTML = "<p style='text-align:center; font-size:12px; color:#475569; margin-top:20px;'>위 검색창에서 대화할 회원을 선택하세요.</p>";
       return;
     }
     try {
@@ -1384,8 +1437,8 @@
     const input = document.getElementById("chat-input-text");
     const text = input.value.trim();
     if (!text) return;
-    const targetMemberId = (currentUser.role === "member") ? currentUser.id : document.getElementById("admin-chat-member-select").value;
-    if (!targetMemberId) return alert("대화할 회원을 선택해주세요.");
+    const targetMemberId = (currentUser.role === "member") ? currentUser.id : document.getElementById("admin-chat-selected-id").value;
+    if (!targetMemberId) return alert("대화할 회원을 검색해서 선택해주세요.");
 
     await db.collection(COL_MESSAGES).add({
       roomId: targetMemberId,
