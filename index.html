@@ -270,6 +270,14 @@
       </div>
 
       <!-- (1) 수업 관리 탭 -->
+      <!-- 📊 오름 데이터 센터 (대표관리자 전용) -->
+        <div id="admin-data-center" style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:14px; padding:14px; margin-bottom:14px; display:none; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <strong style="font-size:14px; color:#1e293b;">📊 운영 데이터 센터 (현재 달력 월 기준)</strong>
+            <button type="button" class="btn-sub btn-sm" onclick="loadAdminDataCenter()">🔄 분석 갱신</button>
+          </div>
+          <div id="admin-data-content" style="font-size:12px; color:#475569;">데이터를 분석하는 중...</div>
+        </div>
       <div id="aview-cal">
         <div style="background:#f8faf9; border:1px solid var(--border); border-radius:14px; padding:12px; margin-bottom:14px;">
           <div style="font-size:14px; font-weight:800; color:var(--primary); margin-bottom:8px;">✨ 빠른 수업 개설 (종목 선택)</div>
@@ -772,6 +780,7 @@
     calMonth+=delta; if(calMonth<0){calMonth=11; calYear--;} if(calMonth>11){calMonth=0; calYear++;}
     selectedDateStr = formatDate(new Date(calYear, calMonth, 1));
     renderCalendar(currentUser?.role==="member"?"member":"admin");
+    if (currentUser?.role === 'master' && typeof loadAdminDataCenter === 'function') loadAdminDataCenter();
   }
 
   async function renderCalendar(mode) {
@@ -1551,6 +1560,90 @@
 
   function openModal(id) { document.getElementById(id).classList.add("open"); if(id==='modal-level-guide') renderLevelGuideModal(); }
   function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+  // ==================== 오름 데이터 센터 (월간 통계 및 분석) ====================
+  async function loadAdminDataCenter() {
+    const box = document.getElementById("admin-data-content");
+    const centerWrap = document.getElementById("admin-data-center");
+    if (!box || !centerWrap) return;
+    
+    // 대표관리자(master)가 아니면 통계 창을 숨깁니다.
+    if (currentUser?.role !== 'master') {
+      centerWrap.style.display = "none";
+      return;
+    }
+    centerWrap.style.display = "block";
+    box.innerHTML = "해당 월의 예약 및 회원 데이터를 분석하고 있습니다...";
+    
+    try {
+      const pre = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+      // 현재 달력에 선택된 월의 예약 데이터만 긁어옵니다.
+      const snap = await db.collection(COL_BOOKINGS)
+        .where("classDate", ">=", `${pre}-01`)
+        .where("classDate", "<=", `${pre}-31`)
+        .where("status", "==", "booked")
+        .get();
+        
+      const bookings = snap.docs.map(d => d.data());
+      
+      let pCount = 0, hCount = 0;
+      const activeMembers = new Set();
+      
+      bookings.forEach(b => {
+        if (b.classCategory === 'pilates') pCount++;
+        else if (b.classCategory === 'hyrox') hCount++;
+        activeMembers.add(b.memberId);
+      });
+      
+      const tot = bookings.length;
+      const pRatio = tot > 0 ? Math.round((pCount / tot) * 100) : 0;
+      const hRatio = tot > 0 ? Math.round((hCount / tot) * 100) : 0;
+      const avgBooking = activeMembers.size > 0 ? (tot / activeMembers.size).toFixed(1) : 0;
+      
+      // 전체 회원 캐시 데이터를 통한 시즌 및 이탈 분석
+      await loadAllMembersCache();
+      let inactiveCount = 0, totalExp = 0;
+      allMembersCache.forEach(m => {
+        if (isLongTermInactive(m)) inactiveCount++;
+        totalExp += (Number(m.seasonExp) || 0);
+      });
+      const avgExp = allMembersCache.length > 0 ? (totalExp / allMembersCache.length).toFixed(1) : 0;
+
+      box.innerHTML = `
+        <div style="display:flex; gap:8px; margin-bottom:12px;">
+          <div style="flex:1; background:#fff; padding:10px 4px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
+            <div style="font-size:11px; color:#64748b; font-weight:700;">${calMonth+1}월 총 예약</div>
+            <div style="font-size:15px; font-weight:900; color:var(--primary); margin-top:2px;">${tot}건</div>
+          </div>
+          <div style="flex:1; background:#fff; padding:10px 4px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
+            <div style="font-size:11px; color:#64748b; font-weight:700;">활성 회원수</div>
+            <div style="font-size:15px; font-weight:900; color:#0d9488; margin-top:2px;">${activeMembers.size}명</div>
+          </div>
+          <div style="flex:1; background:#fff; padding:10px 4px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
+            <div style="font-size:11px; color:#64748b; font-weight:700;">회원당 월평균</div>
+            <div style="font-size:15px; font-weight:900; color:#d97706; margin-top:2px;">${avgBooking}회</div>
+          </div>
+        </div>
+        
+        <div style="margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:800; margin-bottom:4px;">
+            <span style="color:#db2777;">🩷 필라테스 ${pCount}건 (${pRatio}%)</span>
+            <span style="color:#2563eb;">💙 하이록스 ${hCount}건 (${hRatio}%)</span>
+          </div>
+          <div style="width:100%; height:10px; background:#e2e8f0; border-radius:6px; display:flex; overflow:hidden;">
+            <div style="width:${pRatio}%; background:#ec4899; transition:0.5s;"></div>
+            <div style="width:${hRatio}%; background:#3b82f6; transition:0.5s;"></div>
+          </div>
+        </div>
+        
+        <div style="background:#fefce8; border:1px solid #fde047; padding:10px; border-radius:10px; font-size:12px; font-weight:700; color:#854d0e; line-height:1.5;">
+          <span style="display:block; margin-bottom:4px;">🛡️ 시즌 평균 출석: <strong>${avgExp}회</strong> (회원들의 시즌 참여 열기도)</span>
+          <span style="display:block; color:#dc2626;">⚠️ 2개월 장기 미등록(이탈 위험) 회원: <strong>${inactiveCount}명</strong></span>
+        </div>
+      `;
+    } catch(e) {
+      box.innerHTML = `<span style="color:#dc2626;">데이터를 불러오는 중 오류가 발생했습니다: ${e.message}</span>`;
+    }
+  }
 </script>
 </body>
 </html>
