@@ -479,7 +479,6 @@
         <div id="admin-chat-search-results" style="display:none; max-height:130px; overflow-y:auto; background:#fff; border:1.5px solid var(--primary); border-radius:10px; padding:4px; box-shadow:0 4px 12px rgba(0,0,0,0.12);"></div>
       </div>
       <div id="admin-chat-selected-badge" style="font-size:12px; font-weight:800; color:var(--primary); background:#f1f5f3; padding:6px 10px; border-radius:8px; margin-bottom:4px;">대화 상대를 검색해서 선택하세요.</div>
-    </div>
     <div class="kakao-room" id="kakao-chat-box"></div>
     <div style="display:flex; gap:6px;">
       <input type="text" id="chat-input-text" placeholder="메시지를 입력하세요..." style="margin-bottom:0; flex:1;" onkeydown="if(event.key==='Enter') sendChatMessage()">
@@ -1231,43 +1230,72 @@
   }
 
   // 관리자 회원 목록 렌더링
-  function renderAdminMemberList() {
-    const q = (document.getElementById("admin-member-search").value || "").toLowerCase();
-    const box = document.getElementById("admin-member-list"); box.innerHTML="";
-    const filtered = allMembersCache.filter(m => (m.name||"").toLowerCase().includes(q) || (m.phone||"").includes(q));
-    if(!filtered.length) return box.innerHTML="<p style='font-size:12px; color:#64748b; text-align:center; padding:16px;'>회원이 없습니다.</p>";
+  function filterAdminChatMembers() {
+    const q = (document.getElementById("admin-chat-member-search").value || "").trim().toLowerCase();
+    const resBox = document.getElementById("admin-chat-search-results");
+    if (!q) {
+      resBox.style.display = "none";
+      return;
+    }
+    const matches = allMembersCache.filter(m =>
+      (m.name || "").toLowerCase().includes(q) || (m.phone || "").includes(q)
+    );
+    if (!matches.length) {
+      resBox.innerHTML = "<div style='padding:8px; font-size:12px; color:#64748b;'>일치하는 회원이 없습니다.</div>";
+    } else {
+      resBox.innerHTML = matches.map(m => `
+        <div onclick="selectAdminChatMember('${m.id}')" style="padding:8px 10px; font-size:13px; font-weight:700; cursor:pointer; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+          <span>${m.name}</span>
+          <span style="font-size:11px; color:#64748b;">${m.phone}</span>
+        </div>
+      `).join("");
+    }
+    resBox.style.display = "block";
+  }
 
-    filtered.forEach(m=>{
-      const mGender = m.gender || "여";
-      const masterLv = Math.max(Number(m.masterLevel)||1, calcMasterLevel(m.totalSessions||0));
-      const seasonLv = calcSeasonLevel(m.seasonExp||0);
-      const mSvg = getPixelCharacter("master", mGender, masterLv, true);
-      const pSvg = getPixelCharacter("pet", mGender, seasonLv, true);
-      const inactive = isLongTermInactive(m);
+  async function showReceivedMessages() {
+    const resBox = document.getElementById("admin-chat-search-results");
+    resBox.innerHTML = "<div style='padding:8px; font-size:12px; color:#64748b;'>받은 쪽지함을 불러오는 중...</div>";
+    resBox.style.display = "block";
+    
+    try {
+      const snap = await db.collection(COL_MESSAGES).where("senderRole", "==", "member").get();
+      const msgs = snap.docs.map(d => d.data()).sort((a,b) => (b.createdAt||"").localeCompare(a.createdAt||""));
       
-      box.innerHTML += `
-        <div class="class-card" style="display:flex; justify-content:space-between; align-items:center;">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div style="width:72px; height:52px; background:#fefce8; border:1.5px solid #ca8a04; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:2px; padding:2px; overflow:hidden;">
-              <div style="width:34px; height:46px;">${mSvg}</div>
-              <div style="width:32px; height:42px;">${pSvg}</div>
+      const senders = [];
+      const seen = new Set();
+      for (const m of msgs) {
+        if (!seen.has(m.roomId)) {
+          seen.add(m.roomId);
+          senders.push(m);
+        }
+      }
+      
+      if (!senders.length) {
+        resBox.innerHTML = "<div style='padding:8px; font-size:12px; color:#64748b; text-align:center;'>새로 받은 쪽지가 없습니다.</div>";
+        return;
+      }
+      
+      const html = senders.map(msg => {
+        const member = allMembersCache.find(x => x.id === msg.roomId);
+        const mName = member ? member.name : msg.senderName;
+        const mPhone = member ? member.phone : "";
+        const timeStr = (msg.createdAt||"").replace("T", " ").slice(5, 16);
+        return `
+          <div onclick="selectAdminChatMember('${msg.roomId}')" style="padding:10px; font-size:13px; font-weight:700; cursor:pointer; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#fdfbf7;">
+            <div style="flex:1; overflow:hidden;">
+              <div style="color:var(--primary); margin-bottom:2px;">👤 ${mName} <span style="font-size:11px; color:#64748b; font-weight:400;">${mPhone}</span></div>
+              <div style="font-size:11px; color:#475569; font-weight:400; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:90%;">${msg.text}</div>
             </div>
-            <div>
-              <strong style="font-size:14px;">${m.name}</strong> <span style="font-size:11px; color:#64748b;">(${m.phone})</span>
-              <div style="font-size:12px; font-weight:800; color:var(--primary); margin-top:2px;">
-                마스터Lv.${masterLv} · 시즌Lv.${seasonLv} | 잔여 ${m.remainingSessions||0}/${m.totalSessions||0}회
-              </div>
-              <div style="font-size:11px; color:${inactive?'#dc2626':'#64748b'};">
-                만료: ${m.expiryDate||'미설정'} ${inactive?'(2개월 미등록 혜택정지)':''}
-              </div>
-            </div>
+            <span style="font-size:10px; color:#94a3b8; white-space:nowrap;">${timeStr}</span>
           </div>
-          <div style="display:flex; gap:5px; flex-shrink:0;">
-            <button type="button" class="btn-green btn-sm" onclick="openMessengerModal('${m.id}')">쪽지</button>
-            <button type="button" class="btn-indigo btn-sm" onclick="openEditMemberModal('${m.id}')">수정</button>
-          </div>
-        </div>`;
-    });
+        `;
+      }).join("");
+      
+      resBox.innerHTML = `<div style="font-size:11px; font-weight:900; color:#dc2626; padding:6px 10px; background:#fee2e2; border-radius:6px; margin-bottom:4px; text-align:center;">📥 회원들이 보낸 최근 쪽지 목록</div>` + html;
+    } catch (e) {
+      resBox.innerHTML = `<div style='padding:8px; font-size:12px; color:#ef4444;'>오류: ${e.message}</div>`;
+    }
   }
 
   function openAdminAddMemberModal() {
