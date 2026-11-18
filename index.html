@@ -1239,27 +1239,43 @@
   }
 
   // 관리자 회원 목록 렌더링
-  function filterAdminChatMembers() {
-    const q = (document.getElementById("admin-chat-member-search").value || "").trim().toLowerCase();
-    const resBox = document.getElementById("admin-chat-search-results");
-    if (!q) {
-      resBox.style.display = "none";
-      return;
-    }
-    const matches = allMembersCache.filter(m =>
-      (m.name || "").toLowerCase().includes(q) || (m.phone || "").includes(q)
-    );
-    if (!matches.length) {
-      resBox.innerHTML = "<div style='padding:8px; font-size:12px; color:#64748b;'>일치하는 회원이 없습니다.</div>";
-    } else {
-      resBox.innerHTML = matches.map(m => `
-        <div onclick="selectAdminChatMember('${m.id}')" style="padding:8px 10px; font-size:13px; font-weight:700; cursor:pointer; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
-          <span>${m.name}</span>
-          <span style="font-size:11px; color:#64748b;">${m.phone}</span>
-        </div>
-      `).join("");
-    }
-    resBox.style.display = "block";
+  function renderAdminMemberList() {
+    const q = (document.getElementById("admin-member-search").value || "").toLowerCase();
+    const box = document.getElementById("admin-member-list"); box.innerHTML="";
+    const filtered = allMembersCache.filter(m => (m.name||"").toLowerCase().includes(q) || (m.phone||"").includes(q));
+    if(!filtered.length) return box.innerHTML="<p style='font-size:12px; color:#64748b; text-align:center; padding:16px;'>회원이 없습니다.</p>";
+
+    filtered.forEach(m=>{
+      const mGender = m.gender || "여";
+      const masterLv = Math.max(Number(m.masterLevel)||1, calcMasterLevel(m.totalSessions||0));
+      const seasonLv = calcSeasonLevel(m.seasonExp||0);
+      const mSvg = getPixelCharacter("master", mGender, masterLv, true);
+      const pSvg = getPixelCharacter("pet", mGender, seasonLv, true);
+      const inactive = isLongTermInactive(m);
+      
+      box.innerHTML += `
+        <div class="class-card" style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:72px; height:52px; background:#fefce8; border:1.5px solid #ca8a04; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:2px; padding:2px; overflow:hidden;">
+              <div style="width:34px; height:46px;">${mSvg}</div>
+              <div style="width:32px; height:42px;">${pSvg}</div>
+            </div>
+            <div>
+              <strong style="font-size:14px;">${m.name}</strong> <span style="font-size:11px; color:#64748b;">(${m.phone})</span>
+              <div style="font-size:12px; font-weight:800; color:var(--primary); margin-top:2px;">
+                마스터Lv.${masterLv} · 시즌Lv.${seasonLv} | 잔여 ${m.remainingSessions||0}/${m.totalSessions||0}회
+              </div>
+              <div style="font-size:11px; color:${inactive?'#dc2626':'#64748b'};">
+                만료: ${m.expiryDate||'미설정'} ${inactive?'(2개월 미등록 혜택정지)':''}
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; gap:5px; flex-shrink:0;">
+            <button type="button" class="btn-green btn-sm" onclick="openMessengerModal('${m.id}')">쪽지</button>
+            <button type="button" class="btn-indigo btn-sm" onclick="openEditMemberModal('${m.id}')">수정</button>
+          </div>
+        </div>`;
+    });
   }
 
   async function showReceivedMessages() {
