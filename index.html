@@ -802,29 +802,33 @@
     mode==="member"?renderMemberClassesForDate(selectedDateStr):renderAdminClassesForDate(selectedDateStr);
   }
 
-  // 회원 수업 카드 (선생님 이름 중앙에 진하게, 필라테스=핑크 / 하이록스=블루 버튼)
+  // 회원 수업 카드 (필라테스/하이록스 분리 표시)
   async function renderMemberClassesForDate(dateStr) {
     document.getElementById("member-selected-date-label").innerText = dateStr;
     const box = document.getElementById("member-class-list"); box.innerHTML="";
     const dayC = monthClassesCache.filter(c=>c.date===dateStr).sort((a,b)=>a.time.localeCompare(b.time));
     if(!dayC.length) return box.innerHTML="<p style='text-align:center; padding:14px; font-size:13px; color:#64748b;'>개설된 수업이 없습니다.</p>";
-
+    
     const myB = new Set((await db.collection(COL_BOOKINGS).where("memberId","==",currentUser.id).where("classDate","==",dateStr).where("status","==","booked").get()).docs.map(d=>d.data().classId));
     
-    dayC.forEach(c => {
+    let html = "";
+    const pilates = dayC.filter(c=>c.category==='pilates');
+    const hyrox = dayC.filter(c=>c.category==='hyrox');
+
+    const getCardHtml = (c) => {
       const isPast = ((new Date(`${c.date}T${c.time}:00`)-new Date())/3600000) < (c.cutoffHours||1);
       const isFull = (c.bookedCount||0)>=(c.maxCapacity||8), isBooked = myB.has(c.id), isCls = c.status!=="open";
       let btn = c.category==='pilates' ? "필라테스 예약하기" : "하이록스 예약하기";
       let dis = false;
       let btnClass = c.category==='pilates' ? "btn-pilates" : "btn-hyrox";
-
+      
       if(isBooked){btn="예약완료"; dis=true;}
       else if(c.status==="auto_closed"){btn="자동폐강"; dis=true;}
       else if(c.status==="closed"){btn="폐강됨"; dis=true;}
       else if(isFull){btn="정원마감"; dis=true;}
       else if(isPast){btn="예약마감"; dis=true;}
       
-      box.innerHTML += `
+      return `
         <div class="class-card ${c.category} ${isCls?'closed':''}">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div>
@@ -838,7 +842,17 @@
           </div>
           <button type="button" class="${btnClass}" ${dis?"disabled":""} onclick="bookClassByMember('${c.id}')">${btn}</button>
         </div>`;
-    });
+    };
+
+    if(pilates.length > 0) {
+      html += `<div style="font-size:15px; font-weight:900; color:#db2777; margin:16px 0 8px; padding-left:4px;">🩷 필라테스</div>`;
+      pilates.forEach(c => { html += getCardHtml(c); });
+    }
+    if(hyrox.length > 0) {
+      html += `<div style="font-size:15px; font-weight:900; color:#2563eb; margin:16px 0 8px; padding-left:4px;">💙 하이록스</div>`;
+      hyrox.forEach(c => { html += getCardHtml(c); });
+    }
+    box.innerHTML = html;
   }
 
   // 수업 예약 및 회원권 차감 시 시즌레벨/마스터레벨 자동 등급업
@@ -1138,19 +1152,25 @@
     renderCalendar("admin");
   }
 
+  // 관리자 수업 카드 (필라테스/하이록스 분리 표시)
   async function renderAdminClassesForDate(ds) {
     document.getElementById("admin-selected-date-label").innerText = ds;
     const box = document.getElementById("admin-class-list"); box.innerHTML="";
     const dc = monthClassesCache.filter(c=>c.date===ds).sort((a,b)=>a.time.localeCompare(b.time));
     if(!dc.length) return box.innerHTML="<p style='font-size:12px; color:#64748b;'>개설된 수업이 없습니다.</p>";
+    
     const books = {};
     (await db.collection(COL_BOOKINGS).where("classDate","==",ds).where("status","==","booked").get()).docs.forEach(d=>{
       const b={id:d.id,...d.data()}; (books[b.classId]=books[b.classId]||[]).push(b);
     });
     
-    dc.forEach(c=>{
+    let html = "";
+    const pilates = dc.filter(c=>c.category==='pilates');
+    const hyrox = dc.filter(c=>c.category==='hyrox');
+
+    const getCardHtml = (c) => {
       const bl = books[c.id]||[];
-      box.innerHTML += `
+      return `
         <div class="class-card ${c.category} ${c.status!=='open'?'closed':''}">
           <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="document.getElementById('acc-${c.id}').classList.toggle('open')">
             <div>
@@ -1172,7 +1192,17 @@
             </div>
           </div>
         </div>`;
-    });
+    };
+
+    if(pilates.length > 0) {
+      html += `<div style="font-size:15px; font-weight:900; color:#db2777; margin:16px 0 8px; padding-left:4px;">🩷 필라테스</div>`;
+      pilates.forEach(c => { html += getCardHtml(c); });
+    }
+    if(hyrox.length > 0) {
+      html += `<div style="font-size:15px; font-weight:900; color:#2563eb; margin:16px 0 8px; padding-left:4px;">💙 하이록스</div>`;
+      hyrox.forEach(c => { html += getCardHtml(c); });
+    }
+    box.innerHTML = html;
   }
 
   async function adminProxyBook(cid) {
